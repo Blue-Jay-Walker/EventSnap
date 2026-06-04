@@ -4,9 +4,7 @@ from google.oauth2.credentials import Credentials
 import urllib.parse
 
 SCOPES = [
-    "openid",
-    "https://www.googleapis.com/auth/userinfo.email",
-    "https://www.googleapis.com/auth/calendar"
+    "https://www.googleapis.com/auth/calendar.app.created"
 ]
 
 def get_login_url() -> str:
