@@ -5,6 +5,7 @@ import urllib.parse
 
 SCOPES = [
     "https://www.googleapis.com/auth/calendar.app.created"
+    "https://www.googleapis.com/auth/calendar.calendarlist.readonly"
 ]
 
 def get_login_url() -> str:
