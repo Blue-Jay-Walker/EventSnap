@@ -76,9 +76,38 @@ if "code" in query_params:
 
 is_logged_in = st.session_state["credentials"] is not None
 
-if not is_logged_in:
+def render_header_and_banner():
     st.markdown(f"<h1 class='title'>{icon_html}EventSnap 📸</h1>", unsafe_allow_html=True)
     st.markdown("<p class='subtitle'>Capture interesting events directly to your calendar.</p>", unsafe_allow_html=True)
+    st.markdown("""
+    <div style="
+        background: linear-gradient(135deg, #e8f4fd 0%, #f0e6ff 100%);
+        border-left: 4px solid #4285F4;
+        border-radius: 10px;
+        padding: 1.2rem 1.5rem;
+        margin-bottom: 1.5rem;
+        font-size: 0.92rem;
+        line-height: 1.6;
+        color: #333;
+    ">
+        <p style="margin: 0 0 0.4rem 0; font-weight: 600; font-size: 1rem;">
+            Think of it as a Pocket where you throw in infos. about interesting events in a separate Google Calendar.
+        </p>
+        <p style="margin: 0 0 0.8rem 0; font-size: 0.85rem; color: #555; font-style: italic;">
+            e.g. an email with 5 events at your club or uni? a Url from meetup.com or any other website? No Problem, just paste it.
+        </p>
+        <p style="margin: 0 0 0.4rem 0; font-weight: 600;">Key Features:</p>
+        <ol style="margin: 0; padding-left: 1.4rem;">
+            <li>The App does not store any data. The events are stored in YOUR Google calendar. Login is handled by Google OAuth.</li>
+            <li>The event URLs or Text will be interpreted by LLM, in this case OpenAI.</li>
+            <li>It will create a new calendar "Events to Decide" and add events, not touching your main Calendar. You can even use a different Google account if you want.</li>
+            <li>You can revoke the permissions from your Google account anytime for EventSnap.</li>
+        </ol>
+    </div>
+    """, unsafe_allow_html=True)
+
+if not is_logged_in:
+    render_header_and_banner()
     st.warning("Please log in to your Google Account to capture events.")
 
     try:
@@ -121,35 +150,7 @@ with col_logout:
         st.rerun()
 
 # --- Main App Title & Banner ---
-st.markdown(f"<h1 class='title'>{icon_html}EventSnap 📸</h1>", unsafe_allow_html=True)
-st.markdown("<p class='subtitle'>Capture interesting events directly to your calendar.</p>", unsafe_allow_html=True)
-
-st.markdown("""
-<div style="
-    background: linear-gradient(135deg, #e8f4fd 0%, #f0e6ff 100%);
-    border-left: 4px solid #4285F4;
-    border-radius: 10px;
-    padding: 1.2rem 1.5rem;
-    margin-bottom: 1.5rem;
-    font-size: 0.92rem;
-    line-height: 1.6;
-    color: #333;
-">
-    <p style="margin: 0 0 0.4rem 0; font-weight: 600; font-size: 1rem;">
-        Think of it as a Pocket where you throw in infos. about interesting events in a separate Google Calendar.
-    </p>
-    <p style="margin: 0 0 0.8rem 0; font-size: 0.85rem; color: #555; font-style: italic;">
-        e.g. an email with 5 events at your club or uni? a Url from meetup.com or any other website? No Problem, just paste it.
-    </p>
-    <p style="margin: 0 0 0.4rem 0; font-weight: 600;">Key Features:</p>
-    <ol style="margin: 0; padding-left: 1.4rem;">
-        <li>The App does not store any data. The events are stored in YOUR Google calendar. Login is handled by Google OAuth.</li>
-        <li>The event URLs or Text will be interpreted by LLM, in this case OpenAI.</li>
-        <li>It will create a new calendar "Events to Decide" and add events, not touching your main Calendar. You can even use a different Google account if you want.</li>
-        <li>You can revoke the permissions from your Google account anytime for EventSnap.</li>
-    </ol>
-</div>
-""", unsafe_allow_html=True)
+render_header_and_banner()
 
 if "event_text" not in st.session_state:
     st.session_state["event_text"] = ""
