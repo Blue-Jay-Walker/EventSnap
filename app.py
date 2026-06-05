@@ -68,6 +68,25 @@ is_logged_in = st.session_state["credentials"] is not None
 
 if not is_logged_in:
     st.warning("Please log in to your Google Account to capture events.")
+
+    # --- Temporary debug: masked secrets (REMOVE after fixing 403) ---
+    def mask_secret(value: str) -> str:
+        if len(value) <= 8:
+            return value[:2] + "***" + value[-2:]
+        return value[:4] + "***" + value[-4:]
+
+    with st.expander("🔧 Debug: Loaded Secrets (masked)", expanded=True):
+        try:
+            cid = st.secrets["google_oauth"]["client_id"]
+            csec = st.secrets["google_oauth"]["client_secret"]
+            ruri = st.secrets["google_oauth"]["redirect_uri"]
+            st.text(f"client_id:     {mask_secret(cid)}")
+            st.text(f"client_secret: {mask_secret(csec)}")
+            st.text(f"redirect_uri:  {ruri}")
+        except Exception as e:
+            st.error(f"Could not read secrets: {e}")
+    # --- End temporary debug ---
+
     try:
         login_url = get_login_url()
         st.markdown(f'<a href="{login_url}" target="_self"><button style="width: 100%; border-radius: 8px; height: 50px; background-color: #4285F4; color: white; border: none; font-weight: bold; cursor: pointer;">Log In with Google</button></a>', unsafe_allow_html=True)
