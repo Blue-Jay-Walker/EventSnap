@@ -89,7 +89,7 @@ if not is_logged_in:
 
     try:
         login_url = get_login_url()
-        st.markdown(f'<a href="{login_url}" target="_self"><button style="width: 100%; border-radius: 8px; height: 50px; background-color: #4285F4; color: white; border: none; font-weight: bold; cursor: pointer;">Log In with Google</button></a>', unsafe_allow_html=True)
+        st.markdown(f'<a href="{login_url}" target="_self" rel="noreferrer noopener"><button style="width: 100%; border-radius: 8px; height: 50px; background-color: #4285F4; color: white; border: none; font-weight: bold; cursor: pointer;">Log In with Google</button></a>', unsafe_allow_html=True)
     except Exception as e:
         st.error("Failed to generate login URL. Make sure secrets are configured.")
         st.exception(e)
