@@ -48,31 +48,50 @@ def add_event_to_calendar(service, calendar_id: str, event_details):
     if event_details.location:
         event_body['location'] = event_details.location
 
-    # Handle dates/times
-    if event_details.start_date:
-        if event_details.start_time:
-            # LLM guarantees HH:MM format, just append seconds
-            time_str = f"{event_details.start_time}:00"
-            start_str = f"{event_details.start_date}T{time_str}"
-            event_body['start'] = {'dateTime': start_str, 'timeZone': 'Europe/Zurich'}
-        else:
-            event_body['start'] = {'date': event_details.start_date}
-    else:
-        # Fallback if entirely unknown: schedule for today as all-day event
-        today_str = datetime.now().strftime("%Y-%m-%d")
-        event_body['start'] = {'date': today_str}
+    from datetime import timedelta
+    
+    # Determine start date (default to today if missing)
+    start_date = event_details.start_date
+    if not start_date:
+        start_date = datetime.now().strftime("%Y-%m-%d")
         
-    if event_details.end_date:
-        if event_details.end_time:
-            # LLM guarantees HH:MM format, just append seconds
-            time_str = f"{event_details.end_time}:00"
-            end_str = f"{event_details.end_date}T{time_str}"
-            event_body['end'] = {'dateTime': end_str, 'timeZone': 'Europe/Zurich'}
+    start_time = event_details.start_time
+    
+    # Build start datetime if start_time is present
+    if start_time:
+        try:
+            start_dt = datetime.strptime(f"{start_date} {start_time}", "%Y-%m-%d %H:%M")
+        except ValueError:
+            start_dt = None
+    else:
+        start_dt = None
+
+    # Handle end date/time
+    end_date = event_details.end_date or start_date
+    end_time = event_details.end_time
+    
+    if start_dt:
+        if end_time:
+            try:
+                end_dt = datetime.strptime(f"{end_date} {end_time}", "%Y-%m-%d %H:%M")
+            except ValueError:
+                end_dt = start_dt + timedelta(hours=2)
         else:
-            event_body['end'] = {'date': event_details.end_date}
-    elif event_details.start_date:
-        # If no end date, use start date/time
-        event_body['end'] = event_body['start']
+            # Default to 2 hours after start time if end time is not specified
+            end_dt = start_dt + timedelta(hours=2)
+            
+        event_body['start'] = {
+            'dateTime': start_dt.strftime("%Y-%m-%dT%H:%M:00"),
+            'timeZone': 'Europe/Zurich'
+        }
+        event_body['end'] = {
+            'dateTime': end_dt.strftime("%Y-%m-%dT%H:%M:00"),
+            'timeZone': 'Europe/Zurich'
+        }
+    else:
+        # All-day event
+        event_body['start'] = {'date': start_date}
+        event_body['end'] = {'date': end_date}
         
     created_event = service.events().insert(calendarId=calendar_id, body=event_body).execute()
     return created_event.get('htmlLink')
