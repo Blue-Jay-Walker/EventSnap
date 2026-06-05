@@ -4,7 +4,7 @@ from google.oauth2.credentials import Credentials
 import urllib.parse
 
 SCOPES = [
-    "https://www.googleapis.com/auth/calendar.app.created"
+    "https://www.googleapis.com/auth/calendar.app.created",
     "https://www.googleapis.com/auth/calendar.calendarlist.readonly"
 ]
 

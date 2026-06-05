@@ -58,7 +58,7 @@ st.markdown("""
     color: #333;
 ">
     <p style="margin: 0 0 0.6rem 0; font-weight: 600; font-size: 1rem;">
-        Think of it as a Pocket where you throw in infos. about interesting events in a separate Google Calendar.
+        Think of it as a Pocket where you throw in infos. about interesting events in a separate Google Calendar. <br\><br\>
         e.g. an email with 5 events at your club or uni? a Url from meetup.com or any other website? No Problem, just paste it.
     </p>
     <p style="margin: 0 0 0.4rem 0; font-weight: 600;">Key Features:</p>
