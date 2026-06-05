@@ -111,16 +111,8 @@ if not is_logged_in:
     st.warning("Please log in to your Google Account to capture events.")
 
     try:
-        import streamlit.components.v1 as components
         login_url = get_login_url()
-        components.html(
-            f"""
-            <div style="font-family: sans-serif; font-size: 1.17em; font-weight: bold;">
-                <a href="{login_url}" target="_top" style="text-decoration: none; color: #1f77b4;">🔗 Log In with Google</a>
-            </div>
-            """,
-            height=50
-        )
+        st.markdown(f"### [🔗 Log In with Google]({login_url})")
     except Exception as e:
         st.error(f"Could not generate login URL: {e}")
 
