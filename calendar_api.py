@@ -49,11 +49,13 @@ def add_event_to_calendar(service, calendar_id: str, event_details):
         event_body['location'] = event_details.location
 
     from datetime import timedelta
+    from zoneinfo import ZoneInfo
     
     # Determine start date (default to today if missing)
     start_date = event_details.start_date
     if not start_date:
-        start_date = datetime.now().strftime("%Y-%m-%d")
+        zurich_tz = ZoneInfo("Europe/Zurich")
+        start_date = datetime.now(zurich_tz).strftime("%Y-%m-%d")
         
     start_time = event_details.start_time
     

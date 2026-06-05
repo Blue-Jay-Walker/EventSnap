@@ -76,7 +76,9 @@ def extract_event_info(input_text: str):
     prompts = []
 
     def build_prompt():
-        current_year = datetime.now().year
+        from zoneinfo import ZoneInfo
+        zurich_tz = ZoneInfo("Europe/Zurich")
+        current_year = datetime.now(zurich_tz).year
         return (
             f"You are an event extraction assistant. Extract details from the following text. "
             f"Interpret dates/times as Europe/Zurich local time. "
