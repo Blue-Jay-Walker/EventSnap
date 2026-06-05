@@ -112,7 +112,7 @@ if not is_logged_in:
 
     try:
         login_url = get_login_url()
-        st.markdown(f"<h3><a href='{login_url}' target='_self' style='text-decoration: none;'>🔗 Log In with Google</a></h3>", unsafe_allow_html=True)
+        st.markdown(f"<h3><a href='{login_url}' target='_top' style='text-decoration: none;'>🔗 Log In with Google</a></h3>", unsafe_allow_html=True)
     except Exception as e:
         st.error(f"Could not generate login URL: {e}")
 
