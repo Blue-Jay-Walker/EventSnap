@@ -83,6 +83,9 @@ if not is_logged_in:
             st.text(f"client_id:     {mask_secret(cid)}")
             st.text(f"client_secret: {mask_secret(csec)}")
             st.text(f"redirect_uri:  {ruri}")
+            st.divider()
+            st.text("Login button URL:")
+            st.code(get_login_url(), language="text")
         except Exception as e:
             st.error(f"Could not read secrets: {e}")
     # --- End temporary debug ---
