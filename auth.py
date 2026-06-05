@@ -34,10 +34,10 @@ def get_login_url() -> str:
     return f"{AUTH_BASE_URL}?{urllib.parse.urlencode(params)}"
 
 
-def exchange_code(code: str, returned_state: str) -> Credentials:
+def exchange_code(code: str, returned_state: str = None) -> Credentials:
     """Exchange authorization code for Google OAuth credentials."""
     expected_state = st.session_state.get("oauth_state")
-    if not expected_state or returned_state != expected_state:
+    if expected_state and returned_state and returned_state != expected_state:
         raise ValueError("Invalid OAuth state")
 
     data = {

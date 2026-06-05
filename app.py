@@ -81,9 +81,10 @@ if "code" in query_params:
     try:
         # If code is a list (Streamlit older behavior), get the first item
         code_val = query_params["code"][0] if isinstance(query_params["code"], list) else query_params["code"]
-        creds = exchange_code(code_val)
+        state_val = query_params["state"][0] if isinstance(query_params["state"], list) else query_params.get("state")
+        creds = exchange_code(code_val, state_val)
         st.session_state["credentials"] = creds
-        # Clear the code from the URL
+        # Clear the code and state from the URL
         st.query_params.clear()
         st.rerun()
     except Exception as e:
@@ -94,28 +95,14 @@ is_logged_in = st.session_state["credentials"] is not None
 if not is_logged_in:
     st.warning("Please log in to your Google Account to capture events.")
 
-    # --- Temporary debug: masked secrets (REMOVE after fixing 403) ---
-    def mask_secret(value: str) -> str:
-        if len(value) <= 8:
-            return value[:2] + "***" + value[-2:]
-        return value[:4] + "***" + value[-4:]
-
-    with st.expander("🔧 Debug: Loaded Secrets (masked)", expanded=True):
-        try:
-            cid = st.secrets["google_oauth"]["client_id"]
-            csec = st.secrets["google_oauth"]["client_secret"]
-            ruri = st.secrets["google_oauth"]["redirect_uri"]
-            st.text(f"client_id:     {mask_secret(cid)}")
-            st.text(f"client_secret: {mask_secret(csec)}")
-            st.text(f"redirect_uri:  {ruri}")
-            st.divider()
-            st.text("Login button URL:")
-            st.code(get_login_url(), language="text")
-        except Exception as e:
-            st.error(f"Could not read secrets: {e}")
-    # --- End temporary debug ---
-
-    st.markdown('[Login](https://accounts.google.com/o/oauth2/v2/auth?client_id=395852178522-rc0i77mcvnc7ghc4t5cscqraao9d6gdt.apps.googleusercontent.com&redirect_uri=https%3A%2F%2Feventsnap.streamlit.app&response_type=code&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcalendar.app.created&access_type=offline&prompt=consent)')
+    try:
+        login_url = get_login_url()
+        st.markdown(
+            f'<a href="{login_url}" target="_self" style="display: block; text-align: center; background-color: #4285F4; color: white; padding: 14px 20px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-top: 1rem;">Log In with Google</a>',
+            unsafe_allow_html=True
+        )
+    except Exception as e:
+        st.error(f"Could not generate login URL: {e}")
 
     st.stop()
 
