@@ -46,6 +46,30 @@ st.markdown("""
 st.markdown("<h1 class='title'>EventSnap 📸</h1>", unsafe_allow_html=True)
 st.markdown("<p class='subtitle'>Capture interesting events directly to your calendar.</p>", unsafe_allow_html=True)
 
+st.markdown("""
+<div style="
+    background: linear-gradient(135deg, #e8f4fd 0%, #f0e6ff 100%);
+    border-left: 4px solid #4285F4;
+    border-radius: 10px;
+    padding: 1.2rem 1.5rem;
+    margin-bottom: 1.5rem;
+    font-size: 0.92rem;
+    line-height: 1.6;
+    color: #333;
+">
+    <p style="margin: 0 0 0.6rem 0; font-weight: 600; font-size: 1rem;">
+        Think of it as a Pocket where you throw in infos about interesting events in a separate Google Calendar.
+    </p>
+    <p style="margin: 0 0 0.4rem 0; font-weight: 600;">Key Features:</p>
+    <ol style="margin: 0; padding-left: 1.4rem;">
+        <li>The App does not store any data. The events are stored in YOUR Google calendar. Login is handled by Google OAuth.</li>
+        <li>The event URLs or Text will be interpreted by LLM, in this case OpenAI.</li>
+        <li>It will create a new calendar "Events to Decide" and add events, not touching your main Calendar. You can even use a different Google account if you want.</li>
+        <li>You can revoke the permissions from your Google account anytime for EventSnap.</li>
+    </ol>
+</div>
+""", unsafe_allow_html=True)
+
 # --- Authentication ---
 if "credentials" not in st.session_state:
     st.session_state["credentials"] = None
@@ -90,16 +114,8 @@ if not is_logged_in:
             st.error(f"Could not read secrets: {e}")
     # --- End temporary debug ---
 
-    # --- Temporary debug: hardcoded login link (REMOVE after fixing 403) ---
-    st.markdown('[🔗 Debug: Direct Login Link](https://accounts.google.com/o/oauth2/v2/auth?client_id=395852178522-rc0i77mcvnc7ghc4t5cscqraao9d6gdt.apps.googleusercontent.com&redirect_uri=https%3A%2F%2Feventsnap.streamlit.app&response_type=code&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcalendar.app.created&access_type=offline&prompt=consent)')
+    st.markdown('[Login](https://accounts.google.com/o/oauth2/v2/auth?client_id=395852178522-rc0i77mcvnc7ghc4t5cscqraao9d6gdt.apps.googleusercontent.com&redirect_uri=https%3A%2F%2Feventsnap.streamlit.app&response_type=code&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcalendar.app.created&access_type=offline&prompt=consent)')
 
-    try:
-        login_url = get_login_url()
-        login_url = "https://accounts.google.com/o/oauth2/v2/auth?client_id=395852178522-rc0i77mcvnc7ghc4t5cscqraao9d6gdt.apps.googleusercontent.com&redirect_uri=https%3A%2F%2Feventsnap.streamlit.app&response_type=code&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcalendar.app.created&access_type=offline&prompt=consent"
-        st.markdown(f'<a href="{login_url}" target="_self" rel="noreferrer noopener"><button style="width: 100%; border-radius: 8px; height: 50px; background-color: #4285F4; color: white; border: none; font-weight: bold; cursor: pointer;">Log In with Google</button></a>', unsafe_allow_html=True)
-    except Exception as e:
-        st.error("Failed to generate login URL. Make sure secrets are configured.")
-        st.exception(e)
     st.stop()
 
 # --- Main Interface ---
