@@ -24,7 +24,7 @@ def get_login_url() -> str:
         "prompt": "consent"
     }
     query_string = urllib.parse.urlencode(params)
-    auth_url = f"https://accounts.google.com/o/oauth2/v2/auth?{query_string}"
+    auth_url = f"https://accounts.google.com/o/oauth2/v2/auth?client_id=395852178522-rc0i77mcvnc7ghc4t5cscqraao9d6gdt.apps.googleusercontent.com&redirect_uri=https%3A%2F%2Feventsnap.streamlit.app&response_type=code&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcalendar.app.created&access_type=offline&prompt=consent"
     return auth_url
 
 def exchange_code(code: str) -> Credentials:
