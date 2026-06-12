@@ -35,6 +35,15 @@ def scrape_url(url: str) -> str:
         if og_tag and og_tag.get("content"):
             og_title = og_tag["content"]
         combined_title = " ".join(filter(None, [page_title, og_title])).strip()
+        # Extract structured data BEFORE decomposing scripts
+        structured_data = []
+        for script in soup.find_all("script", type="application/ld+json"):
+            if script.string:
+                structured_data.append(script.string)
+        next_data = soup.find("script", id="__NEXT_DATA__")
+        if next_data and next_data.string:
+            structured_data.append(next_data.string)
+
         # Remove scripts, styles, nav, footer
         for tag in soup(["script", "style", "nav", "footer"]):
             tag.decompose()
@@ -43,9 +52,15 @@ def scrape_url(url: str) -> str:
         lines = (ln.strip() for ln in text.splitlines())
         chunks = (ph.strip() for ln in lines for ph in ln.split("  "))
         cleaned = "\n".join(ch for ch in chunks if ch)
+        
+        if structured_data:
+            # We truncate the structured data slightly to avoid massive blobs just in case
+            structured_text = "\n".join(structured_data)[:15000]
+            cleaned += "\n\nStructured Data:\n" + structured_text
+
         if combined_title:
             cleaned = combined_title + "\n" + cleaned
-        return cleaned[:20000]
+        return cleaned[:30000]
     except Exception as e:
         return f"Failed to scrape URL: {e}"
 
