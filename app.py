@@ -106,7 +106,7 @@ def render_header_and_banner():
             <li>You can revoke the permissions from your Google account anytime for EventSnap.</li>
         </ol>
         <p style="margin-top: 1rem; text-align: center;">
-            <a href="privacy.html" target="_blank" style="color: #4285F4; text-decoration: none; font-weight: 600;">🔒 View Privacy Policy</a>
+            <a href="static/privacy.html" target="_blank" style="color: #4285F4; text-decoration: none; font-weight: 600;">🔒 View Privacy Policy</a>
         </p>
     </div>
     """, unsafe_allow_html=True)
