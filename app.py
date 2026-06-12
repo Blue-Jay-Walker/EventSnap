@@ -18,6 +18,8 @@ try:
 except Exception:
     icon_html = ""
 
+
+
 st.markdown("""
 <style>
     /* Mobile-first constraints */
@@ -103,9 +105,11 @@ def render_header_and_banner():
             <li>It will create a new calendar "Events to Decide" and add events, not touching your main Calendar. You can even use a different Google account if you want.</li>
             <li>You can revoke the permissions from your Google account anytime for EventSnap.</li>
         </ol>
+        <p style="margin-top: 1rem; text-align: center;">
+            <a href="privacy.html" target="_blank" style="color: #4285F4; text-decoration: none; font-weight: 600;">🔒 View Privacy Policy</a>
+        </p>
     </div>
     """, unsafe_allow_html=True)
-    st.page_link("pages/privacy_policy.py", label="View Privacy Policy", icon="🔒")
 
 if not is_logged_in:
     render_header_and_banner()
