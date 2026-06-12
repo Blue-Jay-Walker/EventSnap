@@ -105,6 +105,7 @@ def render_header_and_banner():
         </ol>
     </div>
     """, unsafe_allow_html=True)
+    st.page_link("pages/privacy_policy.py", label="View Privacy Policy", icon="🔒")
 
 if not is_logged_in:
     render_header_and_banner()
@@ -184,17 +185,11 @@ if submitted:
         with st.spinner("Extracting event details..."):
             try:
                 # 1. Extract Info
-                details_list, scraped_texts, llm_prompts = extract_event_info(event_input)
+                details_list = extract_event_info(event_input)
                 
                 # Process each extracted event
-                for idx, (details, scraped_text, llm_prompt) in enumerate(zip(details_list, scraped_texts, llm_prompts), start=1):
+                for idx, details in enumerate(details_list, start=1):
                     st.subheader(f"Event #{idx}")
-                    # Show scraped raw text
-                    with st.expander("Scraped Content (raw)", expanded=False):
-                        st.code(scraped_text, language="text")
-                    # Show LLM prompt for debugging
-                    with st.expander("LLM System Prompt", expanded=False):
-                        st.code(llm_prompt, language="text")
                     # Show extracted preview (optional, for UX)
                     with st.expander("Extracted Details", expanded=False):
                         st.json(details.model_dump())

@@ -76,7 +76,7 @@ class EventDetailsList(BaseModel):
 
 def extract_event_info(input_text: str):
     """Extract event details using OpenAI.
-    Returns (list[EventDetails], list[str] raw_texts, list[str] system_prompts).
+    Returns list[EventDetails].
     Handles multiple URLs and free‑text (multiple events)."""
     # Split input into non‑empty lines
     lines = [ln.strip() for ln in input_text.splitlines() if ln.strip()]
@@ -87,8 +87,6 @@ def extract_event_info(input_text: str):
     free_text_block = "\n".join([ln for ln in lines if not is_url(ln)]).strip()
 
     details_list = []
-    raw_texts = []
-    prompts = []
 
     def build_prompt():
         from zoneinfo import ZoneInfo
@@ -130,8 +128,6 @@ def extract_event_info(input_text: str):
             if url and not details.source_url:
                 details.source_url = url
             details_list.append(details)
-            raw_texts.append(raw)
-            prompts.append(system_prompt)
 
     # 2. Process Free Text block (can contain multiple events)
     if free_text_block:
@@ -147,10 +143,8 @@ def extract_event_info(input_text: str):
             
             for details in extracted_events:
                 details_list.append(details)
-                raw_texts.append(free_text_block)
-                prompts.append(system_prompt)
                 
         except Exception as e:
             st.error(f"LLM multi-event extraction failed: {e}")
 
-    return details_list, raw_texts, prompts
+    return details_list
