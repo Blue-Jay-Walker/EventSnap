@@ -5,7 +5,7 @@ from auth import get_login_url, exchange_code
 from extractor import extract_event_info
 from calendar_api import get_calendar_service, get_or_create_calendar, add_event_to_calendar
 
-# --- Page Config & Mobile Styling ---
+# --- Page Config & Mobile Styling 22 ---
 st.set_page_config(page_title="EventSnap", page_icon="📅", layout="centered")
 
 def get_base64_image(image_path):
