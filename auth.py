@@ -3,6 +3,9 @@ import logging
 import urllib.parse
 import requests
 import streamlit as st
+import hmac
+import hashlib
+import time
 from google.oauth2.credentials import Credentials
 
 logger = logging.getLogger(__name__)
@@ -18,12 +21,65 @@ AUTH_BASE_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_URL = "https://oauth2.googleapis.com/token"
 
 
+def generate_secure_state(mode: str) -> str:
+    """Generate a cryptographically signed state parameter to prevent CSRF statelessly."""
+    client_secret = st.secrets["google_oauth"]["client_secret"]
+    timestamp = int(time.time())
+    random_part = secrets.token_urlsafe(16)
+    payload = f"{random_part}__mode_{mode}__time_{timestamp}"
+    
+    # Compute HMAC-SHA256 signature using the client secret
+    sig = hmac.new(client_secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
+    return f"{payload}__sig_{sig}"
+
+
+def verify_secure_state(state: str) -> tuple[bool, str]:
+    """Verify the signed state parameter and extract the mode.
+    Returns (is_valid, mode)."""
+    try:
+        if not state:
+            return False, "event"
+            
+        client_secret = st.secrets["google_oauth"]["client_secret"]
+        
+        # Split payload and signature
+        if "__sig_" not in state:
+            return False, "event"
+            
+        payload, sig = state.split("__sig_", 1)
+        
+        # Recompute signature
+        expected_sig = hmac.new(client_secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
+        
+        # Constant-time comparison to prevent timing attacks
+        if not hmac.compare_digest(sig, expected_sig):
+            return False, "event"
+            
+        # Parse payload
+        parts = payload.split("__")
+        mode = "event"
+        timestamp = 0
+        for part in parts:
+            if part.startswith("mode_"):
+                mode = part.split("_", 1)[1]
+            elif part.startswith("time_"):
+                timestamp = int(part.split("_", 1)[1])
+                
+        # Expire after 15 minutes (900 seconds)
+        if time.time() - timestamp > 900:
+            return False, "event"
+            
+        return True, mode
+    except Exception:
+        return False, "event"
+
+
 def get_login_url(mode: str = "event") -> str:
     """Build the Google OAuth authorization URL."""
     client_id = st.secrets["google_oauth"]["client_id"]
     redirect_uri = st.secrets["google_oauth"]["redirect_uri"]
 
-    state = f"{secrets.token_urlsafe(32)}__mode_{mode}"
+    state = generate_secure_state(mode)
     st.session_state["oauth_state"] = state
 
     params = {
@@ -41,10 +97,11 @@ def get_login_url(mode: str = "event") -> str:
 
 def exchange_code(code: str, returned_state: str = None) -> Credentials:
     """Exchange authorization code for Google OAuth credentials."""
-    expected_state = st.session_state.get("oauth_state")
-    if not expected_state or not returned_state or returned_state != expected_state:
-        logger.warning("OAuth state mismatch detected — possible CSRF attempt.")
-        raise ValueError("Authentication failed: OAuth state mismatch. Please try logging in again.")
+    # Verify the returned state cryptographically
+    is_valid, mode = verify_secure_state(returned_state)
+    if not is_valid:
+        logger.warning("OAuth state verification failed — possible CSRF attempt or expired session.")
+        raise ValueError("Authentication failed: OAuth state mismatch or expired login session. Please try logging in again.")
 
     data = {
         "code": code,
