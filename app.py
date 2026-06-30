@@ -1,12 +1,47 @@
 import streamlit as st
 import base64
 import os
-from auth import get_login_url, exchange_code
+import logging
+from auth import get_login_url, exchange_code, revoke_token
 from extractor import extract_event_info
 from calendar_api import get_calendar_service, get_or_create_calendar, add_event_to_calendar
 
-# --- Page Config & Mobile Styling 22 ---
+logger = logging.getLogger(__name__)
+
+# --- Page Config & Mobile Styling ---
 st.set_page_config(page_title="EventSnap", page_icon="📅", layout="centered")
+
+# --- Base URL Resolution & Privacy Policy Routing ---
+try:
+    base_url = st.secrets["google_oauth"]["redirect_uri"]
+    if "?" in base_url:
+        base_url = base_url.split("?")[0]
+    if base_url.endswith("/"):
+        base_url = base_url[:-1]
+except Exception:
+    base_url = "http://localhost:8501"
+
+privacy_url = f"{base_url}/?page=privacy"
+
+if st.query_params.get("page") == "privacy":
+    st.title("Privacy Policy for EventSnap")
+    st.write("This application is designed with privacy and security in mind. Please review how your data is handled below:")
+    
+    st.subheader("No Data Storage")
+    st.write("The App does not store any data. The events are stored directly in YOUR Google calendar. Login is handled securely by Google Login (OAuth).")
+    
+    st.subheader("Public LLM Processing")
+    st.write("The event URLs or Text you submit will be interpreted by a public LLM, in this case OpenAI. Do not submit highly sensitive personal text.")
+    
+    st.subheader("Dedicated Calendar")
+    st.write("A new calendar named **'Events to Decide'** will be created and used to add events. Your main Calendar remains completely untouched. You can even use a different Google account if you want.")
+    
+    st.subheader("Full Control")
+    st.write("You can revoke the permissions from your Google account anytime for EventSnap via your Google Account settings.")
+    
+    st.write("---")
+    st.info("You can close this tab to return to the app.")
+    st.stop()
 
 def get_base64_image(image_path):
     with open(image_path, "rb") as img_file:
@@ -74,14 +109,15 @@ if "code" in query_params:
         st.query_params.clear()
         st.rerun()
     except Exception as e:
-        st.error(f"Authentication failed: {e}")
+        logger.exception("Authentication failed during code exchange.")
+        st.error("Authentication failed. Please try logging in again.")
 
 is_logged_in = st.session_state["credentials"] is not None
 
 def render_header_and_banner():
     st.markdown(f"<h1 class='title'>{icon_html}EventSnap 📸</h1>", unsafe_allow_html=True)
     st.markdown("<p class='subtitle'>Capture interesting events directly to your calendar.</p>", unsafe_allow_html=True)
-    st.markdown("""
+    st.markdown(f"""
     <div style="
         background: linear-gradient(135deg, #e8f4fd 0%, #f0e6ff 100%);
         border-left: 4px solid #4285F4;
@@ -101,12 +137,12 @@ def render_header_and_banner():
         <p style="margin: 0 0 0.4rem 0; font-weight: 600;">Key Features:</p>
         <ol style="margin: 0; padding-left: 1.4rem;">
             <li>The App does not store any data. The events are stored in YOUR Google calendar. Login is handled by Google OAuth.</li>
-            <li>The event URLs or Text will be interpreted by LLM, in this case OpenAI.</li>
+            <li>The event URLs or Text will be sent to OpenAI's API for processing. OpenAI retains API data for up to 30 days for abuse monitoring, but does not use it to train models. Do not paste highly sensitive personal information.</li>
             <li>It will create a new calendar "Events to Decide" and add events, not touching your main Calendar. You can even use a different Google account if you want.</li>
             <li>You can revoke the permissions from your Google account anytime for EventSnap.</li>
         </ol>
         <p style="margin-top: 1rem; text-align: center;">
-            <a href="static/privacy.html" target="_blank" style="color: #4285F4; text-decoration: none; font-weight: 600;">🔒 View Privacy Policy</a>
+            <a href="{privacy_url}" target="_blank" style="color: #4285F4; text-decoration: none; font-weight: 600;">🔒 View Privacy Policy</a>
         </p>
     </div>
     """, unsafe_allow_html=True)
@@ -119,7 +155,8 @@ if not is_logged_in:
         login_url = get_login_url()
         st.markdown(f"### [🔗 Log In with Google]({login_url})")
     except Exception as e:
-        st.error(f"Could not generate login URL: {e}")
+        logger.exception("Could not generate login URL.")
+        st.error("Could not generate login URL. Please try again later.")
 
     st.stop()
 
@@ -151,7 +188,19 @@ with col_logout:
         </style>
     """, unsafe_allow_html=True)
     if st.button("Log Out"):
+        # Attempt to revoke the Google OAuth token before clearing session
+        tokens = st.session_state.get("google_tokens")
+        if tokens:
+            # Prefer revoking the refresh token (revokes both); fall back to access token
+            token_to_revoke = tokens.get("refresh_token") or tokens.get("access_token")
+            if token_to_revoke:
+                revoked = revoke_token(token_to_revoke)
+                if revoked:
+                    st.toast("Google access has been revoked.")
+                else:
+                    st.toast("Could not revoke Google access. You can revoke it manually in your Google Account security settings.")
         st.session_state["credentials"] = None
+        st.session_state.pop("google_tokens", None)
         st.rerun()
 
 # --- Main App Title & Banner ---
@@ -204,6 +253,8 @@ if submitted:
                         event_link = add_event_to_calendar(service, calendar_id, details)
                         st.success(f"🎉 Event #{idx} added to 'Events to Decide' calendar! [View Event in Google Calendar]({event_link})")
                     except Exception as e:
-                        st.error(f"Failed to add Event #{idx} to calendar: {e}")
+                        logger.exception(f"Failed to add event #{idx} to calendar.")
+                        st.error(f"Failed to add Event #{idx} to calendar. Please check your Google connection and try again.")
             except Exception as e:
-                st.error(f"An error occurred: {e}")
+                logger.exception("Error during event extraction.")
+                st.error("An unexpected error occurred while processing your input. Please try again.")
