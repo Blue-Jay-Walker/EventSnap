@@ -77,16 +77,10 @@ class EventDetailsList(BaseModel):
 def extract_event_info(input_text: str):
     """Extract event details using OpenAI.
     Returns list[EventDetails].
-    Handles multiple URLs and free‑text (multiple events)."""
-    # Split input into non‑empty lines
+    Scrapes URLs and combines them with any accompanying text for unified LLM extraction."""
+    # Find all URLs in the input
     lines = [ln.strip() for ln in input_text.splitlines() if ln.strip()]
-    
-    # Separate URLs from normal text
     urls = [ln for ln in lines if is_url(ln)]
-    # All non-url text combined as a single free-text block
-    free_text_block = "\n".join([ln for ln in lines if not is_url(ln)]).strip()
-
-    details_list = []
 
     def build_prompt():
         from zoneinfo import ZoneInfo
@@ -108,50 +102,44 @@ def extract_event_info(input_text: str):
             f"- Set the title to include the street name and number of the apartment (e.g., 'Apartment Viewing: [Street Name] [Number]')."
         )
 
-    # 1. Process URLs individually
+    # Scrape all URLs
+    scraped_contents = []
     for url in urls:
         scraped = scrape_url(url)
-        raw = f"Content scraped from {url}:\n\n" + scraped
-
-        system_prompt = build_prompt()
-        try:
-            client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-            completion = client.beta.chat.completions.parse(
-                model="gpt-4o-2024-08-06",
-                messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": raw}],
-                response_format=EventDetailsList,  # ALWAYS expect a list
-            )
-            extracted_events = completion.choices[0].message.parsed.events
-        except Exception as e:
-            st.error(f"LLM extraction failed for {url}: {e}")
-            extracted_events = [EventDetails(
-                title="", start_date=None, start_time=None, end_date=None,
-                end_time=None, category="Tech", price="", location=None,
-                description="", source_url=url,
-            )]
+        scraped_contents.append(f"--- Scraped Content from {url} ---\n{scraped}")
         
-        # Add source URL and append
-        for details in extracted_events:
-            if url and not details.source_url:
-                details.source_url = url
-            details_list.append(details)
-
-    # 2. Process Free Text block (can contain multiple events)
-    if free_text_block:
-        system_prompt = build_prompt()
-        try:
-            client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-            completion = client.beta.chat.completions.parse(
-                model="gpt-4o-2024-08-06",
-                messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": free_text_block}],
-                response_format=EventDetailsList, # Use the list format!
-            )
-            extracted_events = completion.choices[0].message.parsed.events
-            
-            for details in extracted_events:
-                details_list.append(details)
+    # Combine scraped contents and the original input
+    combined_content = ""
+    if scraped_contents:
+        combined_content += "\n\n".join(scraped_contents) + "\n\n"
+    
+    combined_content += f"--- User Input ---\n{input_text}"
+    
+    system_prompt = build_prompt()
+    try:
+        client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+        completion = client.beta.chat.completions.parse(
+            model="gpt-4o-2024-08-06",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": combined_content}
+            ],
+            response_format=EventDetailsList,
+        )
+        details_list = completion.choices[0].message.parsed.events
+        
+        # Ensure source_url is populated from the URL if not set
+        for details in details_list:
+            if urls and not details.source_url:
+                details.source_url = urls[0]
                 
-        except Exception as e:
-            st.error(f"LLM multi-event extraction failed: {e}")
-
-    return details_list
+        return details_list
+    except Exception as e:
+        st.error(f"LLM extraction failed: {e}")
+        # Return a fallback empty event if nothing extracted
+        fallback_url = urls[0] if urls else None
+        return [EventDetails(
+            title="", start_date=None, start_time=None, end_date=None,
+            end_time=None, category="Tech", price="", location=None,
+            description="", source_url=fallback_url,
+        )]
