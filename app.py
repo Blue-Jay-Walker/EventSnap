@@ -103,6 +103,11 @@ st.markdown("""
         background-color: #4CAF50;
         color: white;
     }
+    /* Style Clear button red */
+    div[data-testid="column"]:nth-of-type(1) button {
+        background-color: #d32f2f !important;
+        color: white !important;
+    }
     .stTextInput>div>div>input {
         border-radius: 8px;
     }
@@ -200,23 +205,14 @@ if not is_logged_in:
 
     st.stop()
 
-# --- Top Right Header (Status & Logout) ---
-col_space, col_status, col_logout = st.columns([6, 3, 2])
-with col_status:
-    st.markdown(
-        "<div style='text-align: right; padding-top: 8px;'>"
-        "<span style='background-color: #E8F5E9; color: #2E7D32; border: 1px solid #C8E6C9; padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; white-space: nowrap;'>"
-        "✅ Logged in"
-        "</span>"
-        "</div>",
-        unsafe_allow_html=True
-    )
+# --- Top Right Header (Logout Only) ---
+col_space, col_logout = st.columns([9, 2])
 with col_logout:
     st.markdown("""
         <style>
         /* Style the logout button in the top-right columns specifically */
-        div[data-testid="column"]:nth-of-type(3) button {
-            background-color: #d32f2f !important;
+        div[data-testid="column"]:nth-of-type(2) button {
+            background-color: #FF9800 !important; /* Orange */
             color: white !important;
             height: 32px !important;
             padding: 0 10px !important;
@@ -267,12 +263,12 @@ event_input = st.text_area(
     placeholder=TEXT_PLACEHOLDER
 )
 
-# Align Capture on the left, Clear on the right
+# Align Clear on the left, Capture on the right
 col_btn1, col_space, col_btn2 = st.columns([2, 6, 2])
 with col_btn1:
-    submitted = st.button(button_label, use_container_width=True)
-with col_btn2:
     clear_btn = st.button("Clear", on_click=clear_event_text, use_container_width=True)
+with col_btn2:
+    submitted = st.button(button_label, use_container_width=True)
         
 if submitted:
     input_error = "Please enter a URL or viewing details." if app_mode == "apartment" else "Please enter a URL or event description."
@@ -290,9 +286,6 @@ if submitted:
                 for idx, details in enumerate(details_list, start=1):
                     entry_type = "Viewing" if app_mode == "apartment" else "Event"
                     st.subheader(f"{entry_type} #{idx}")
-                    # Show extracted preview (optional, for UX)
-                    with st.expander("Extracted Details", expanded=False):
-                        st.json(details.model_dump())
                     # 3. Save to Calendar for each event
                     try:
                         service = get_calendar_service(st.session_state["credentials"])
@@ -302,6 +295,9 @@ if submitted:
                     except Exception as e:
                         logger.exception(f"Failed to add event #{idx} to calendar.")
                         st.error(f"Failed to add Event #{idx} to calendar. Please check your Google connection and try again.")
+                    # Show extracted preview (optional, for UX)
+                    with st.expander("Extracted Details", expanded=False):
+                        st.json(details.model_dump())
             except Exception as e:
                 logger.exception("Error during event extraction.")
                 st.error("An unexpected error occurred while processing your input. Please try again.")
