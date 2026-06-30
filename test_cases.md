@@ -82,3 +82,18 @@ This file contains scenarios to verify the event and apartment viewing extractio
   * **Category:** `Apartment Viewing`
   * **Price:** `2500 CHF/month`
   * **Location:** `Main Street 12, 8001 Zurich`
+
+### Test Case 2.3: Relative Date/Time Resolution
+* **Input:**
+  ```text
+  Tomorrow at 18:30
+  https://flatfox.ch/en/flat/schilplinstrasse-10-5200-brugg-ag/86136246/
+  ```
+* **Expected Output (assuming today is 2026-06-30):**
+  * **Title:** `Apartment Viewing: Schilplinstrasse 10`
+  * **Start Date:** `2026-07-01` (resolves "Tomorrow" correctly relative to the current date)
+  * **Start Time:** `18:30`
+  * **Category:** `Apartment Viewing`
+  * **Price:** `[Rent from Flatfox listing]`
+  * **Location:** `Schilplinstrasse 10, 5200 Brugg AG`
+  * **Source URL:** `https://flatfox.ch/en/flat/schilplinstrasse-10-5200-brugg-ag/86136246/`

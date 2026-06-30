@@ -85,11 +85,16 @@ def extract_event_info(input_text: str):
     def build_prompt():
         from zoneinfo import ZoneInfo
         zurich_tz = ZoneInfo("Europe/Zurich")
-        current_year = datetime.now(zurich_tz).year
+        now = datetime.now(zurich_tz)
+        current_date_str = now.strftime("%Y-%m-%d")
+        current_time_str = now.strftime("%H:%M")
+        current_day_name = now.strftime("%A")
         return (
             f"You are an event extraction assistant. Extract details from the following text. "
             f"Interpret dates/times as Europe/Zurich local time. "
-            f"If a year is missing, assume {current_year}. "
+            f"Today's reference date is {current_date_str} ({current_day_name}) and the current local time is {current_time_str} (Europe/Zurich timezone). "
+            f"Use this reference date and time to resolve relative date/time descriptions like 'tomorrow', 'today', 'next Wednesday', etc. "
+            f"If a year is missing, assume the year from today's date ({now.year}). "
             f"Provide dates in YYYY-MM-DD format. "
             f"Convert all start and end times to strict 24-hour 'HH:MM' format, cleaning up any separators like '.' or ';' and converting from AM/PM if necessary (e.g., '14:00' instead of '14.00' or '2pm'). "
             f"Do NOT invent times; return null if not present. "
