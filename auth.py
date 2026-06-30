@@ -42,8 +42,9 @@ def get_login_url(mode: str = "event") -> str:
 def exchange_code(code: str, returned_state: str = None) -> Credentials:
     """Exchange authorization code for Google OAuth credentials."""
     expected_state = st.session_state.get("oauth_state")
-    if expected_state and returned_state and returned_state != expected_state:
-        st.warning(f"OAuth state mismatch: expected {expected_state}, got {returned_state}. Proceeding anyway...")
+    if not expected_state or not returned_state or returned_state != expected_state:
+        logger.warning("OAuth state mismatch detected — possible CSRF attempt.")
+        raise ValueError("Authentication failed: OAuth state mismatch. Please try logging in again.")
 
     data = {
         "code": code,

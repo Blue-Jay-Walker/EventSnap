@@ -48,6 +48,7 @@ except Exception:
     base_url = "http://localhost:8501"
 
 privacy_url = f"{base_url}/?page=privacy&mode={app_mode}"
+tos_url = f"{base_url}/?page=tos&mode={app_mode}"
 
 if st.query_params.get("page") == "privacy":
     st.title(f"Privacy Policy for {APP_NAME}")
@@ -75,15 +76,28 @@ if st.query_params.get("page") == "privacy":
     st.info("You can close this tab to return to the app.")
     st.stop()
 
-def get_base64_image(image_path):
-    with open(image_path, "rb") as img_file:
-        return base64.b64encode(img_file.read()).decode()
+if st.query_params.get("page") == "tos":
+    st.title(f"Terms of Service for {APP_NAME}")
+    st.write(f"By using this application, you agree to the following terms and usage constraints:")
+    
+    st.subheader("1. Fair Use & API Abuse Prevention")
+    st.write("To ensure availability and manage API costs, the following constraints are enforced per user:")
+    st.markdown("- **Input Length Limit:** Text submissions are capped at a maximum of **5,000 characters**.")
+    st.markdown("- **Scraping Limits:** A maximum of **3 listing/event URLs** will be processed per capture submission.")
+    st.markdown("- **Rate Limiting:** A minimum cooldown period of **5 seconds** is enforced between consecutive capture submissions.")
+    st.markdown("- **Session Limit:** Users are limited to **30 capture requests per session**. Reaching this limit requires refreshing the page to start a new session.")
+    
+    st.subheader("2. No Automated Requests")
+    st.write("Automated scripts, bots, or scrape attempts designed to query the application's extraction endpoints directly are strictly prohibited.")
 
-try:
-    icon_base64 = get_base64_image("calendar_icon.png")
-    icon_html = f"<img src='data:image/png;base64,{icon_base64}' style='width: 48px; vertical-align: middle; margin-right: 12px; margin-bottom: 8px;'>"
-except Exception:
-    icon_html = ""
+    st.subheader("3. Disclaimer of Liability")
+    st.write("This tool is provided 'as is' without warranties of any kind. You are responsible for the content you submit and the permissions granted to access your Google Calendar account.")
+    
+    st.write("---")
+    st.info("You can close this tab to return to the app.")
+    st.stop()
+
+icon_html = ""
 
 
 
@@ -208,6 +222,8 @@ def render_info_banner():
         </ol>
         <p style="margin-top: 1rem; text-align: center;">
             <a href="{privacy_url}" target="_blank" style="color: #4285F4; text-decoration: none; font-weight: 600;">🔒 View Privacy Policy</a>
+            <span style="color: #ccc; margin: 0 10px;">|</span>
+            <a href="{tos_url}" target="_blank" style="color: #4285F4; text-decoration: none; font-weight: 600;">📄 Terms of Service</a>
         </p>
     </div>
     """, unsafe_allow_html=True)
@@ -266,7 +282,8 @@ event_input = st.text_area(
     input_label,
     key="event_text",
     height=dynamic_height,
-    placeholder=TEXT_PLACEHOLDER
+    placeholder=TEXT_PLACEHOLDER,
+    max_chars=5000
 )
 
 # Align Clear on the left, Capture on the right
@@ -277,6 +294,22 @@ with col_btn2:
     submitted = st.button(button_label, use_container_width=True)
         
 if submitted:
+    import time
+    
+    # 1. Cooldown Rate-Limiter (5 seconds)
+    if "last_capture_time" in st.session_state:
+        elapsed = time.time() - st.session_state["last_capture_time"]
+        if elapsed < 5:
+            st.error("🕒 Please wait 5 seconds before capturing another event.")
+            st.stop()
+            
+    # 2. Session API Call Cap (30 calls per session)
+    if "api_calls_count" not in st.session_state:
+        st.session_state["api_calls_count"] = 0
+    if st.session_state["api_calls_count"] >= 30:
+        st.error("🚫 Session limit reached (maximum 30 captures per session). Please refresh the page to reset.")
+        st.stop()
+
     input_error = "Please enter a URL or viewing details." if app_mode == "apartment" else "Please enter a URL or event description."
     spinner_msg = "Extracting viewing details..." if app_mode == "apartment" else "Extracting event details..."
     
@@ -304,6 +337,9 @@ if submitted:
                     # Show extracted preview (optional, for UX)
                     with st.expander("Extracted Details", expanded=False):
                         st.json(details.model_dump())
+                        
+                st.session_state["api_calls_count"] = st.session_state.get("api_calls_count", 0) + 1
+                st.session_state["last_capture_time"] = time.time()
             except Exception as e:
                 logger.exception("Error during event extraction.")
                 st.error("An unexpected error occurred while processing your input. Please try again.")

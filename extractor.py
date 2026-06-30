@@ -21,8 +21,53 @@ class EventDetails(BaseModel):
     description: str = Field(description="Short description of the event.")
     source_url: Optional[str] = Field(description="Source URL if provided.")
 
+def is_safe_url(url: str) -> bool:
+    """Check if the URL is public and safe to scrape (prevents SSRF)."""
+    import socket
+    try:
+        parsed = urlparse(url)
+        hostname = parsed.hostname
+        if not hostname:
+            return False
+            
+        # Resolve hostname to IP
+        ip = socket.gethostbyname(hostname)
+        
+        # Check for loopback, link-local, and private ranges
+        ip_parts = [int(x) for x in ip.split('.')]
+        
+        # Loopback (127.0.0.0/8)
+        if ip_parts[0] == 127:
+            return False
+            
+        # Private Class A (10.0.0.0/8)
+        if ip_parts[0] == 10:
+            return False
+            
+        # Private Class B (172.16.0.0/12)
+        if ip_parts[0] == 172 and 16 <= ip_parts[1] <= 31:
+            return False
+            
+        # Private Class C (192.168.0.0/16)
+        if ip_parts[0] == 192 and ip_parts[1] == 168:
+            return False
+            
+        # Link-local / APIPA (169.254.0.0/16)
+        if ip_parts[0] == 169 and ip_parts[1] == 254:
+            return False
+            
+        # IPv4 multicast (224.0.0.0/4)
+        if ip_parts[0] >= 224:
+            return False
+            
+        return True
+    except Exception:
+        return False
+
 def scrape_url(url: str) -> str:
     """Fetch page, extract visible text, and prepend title information."""
+    if not is_safe_url(url):
+        return f"Access denied: URL points to an unsafe or private network address."
     try:
         headers = {"User-Agent": "Mozilla/5.0"}
         resp = requests.get(url, headers=headers, timeout=10)
@@ -81,6 +126,11 @@ def extract_event_info(input_text: str):
     # Find all URLs in the input
     lines = [ln.strip() for ln in input_text.splitlines() if ln.strip()]
     urls = [ln for ln in lines if is_url(ln)]
+
+    # Limit to maximum 3 URLs per request to prevent token/request abuse
+    if len(urls) > 3:
+        st.warning("⚠️ To prevent API overload, only the first 3 URLs will be processed.")
+        urls = urls[:3]
 
     def build_prompt():
         from zoneinfo import ZoneInfo
