@@ -203,6 +203,7 @@ def render_info_banner():
             <li>The App does not store any data. The entries are stored in YOUR Google calendar. Login is handled by Google OAuth.</li>
             <li>{BANNER_FEAT_2}</li>
             <li>{BANNER_FEAT_3}</li>
+            <li>View and manage the added appointments using Google Calendar App on mobile or desktop.</li>
             <li>You can revoke the permissions from your Google account anytime for {APP_NAME}.</li>
         </ol>
         <p style="margin-top: 1rem; text-align: center;">
