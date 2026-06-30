@@ -8,13 +8,13 @@ def get_calendar_service(credentials):
     """Builds and returns the Google Calendar API service."""
     return build('calendar', 'v3', credentials=credentials)
 
-def get_or_create_calendar(service):
-    """Finds 'Events to Decide' calendar, creates it if not found, and returns its ID."""
+def get_or_create_calendar(service, calendar_summary=CALENDAR_SUMMARY):
+    """Finds the calendar by summary, creates it if not found, and returns its ID."""
     page_token = None
     while True:
         calendar_list = service.calendarList().list(pageToken=page_token).execute()
         for calendar_list_entry in calendar_list['items']:
-            if calendar_list_entry['summary'] == CALENDAR_SUMMARY:
+            if calendar_list_entry['summary'] == calendar_summary:
                 return calendar_list_entry['id']
         page_token = calendar_list.get('nextPageToken')
         if not page_token:
@@ -22,7 +22,7 @@ def get_or_create_calendar(service):
             
     # If we get here, the calendar doesn't exist. Create it.
     calendar = {
-        'summary': CALENDAR_SUMMARY,
+        'summary': calendar_summary,
         'timeZone': 'Europe/Zurich'
     }
     created_calendar = service.calendars().insert(body=calendar).execute()

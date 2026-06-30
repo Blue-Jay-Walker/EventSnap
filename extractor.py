@@ -15,7 +15,7 @@ class EventDetails(BaseModel):
     start_time: Optional[str] = Field(description="Start time normalized to 24-hour HH:MM format (e.g., '18:30' instead of '6:30pm' or '18.30'). Null if not mentioned.")
     end_date: Optional[str] = Field(description="End date in YYYY-MM-DD format. Null if not mentioned.")
     end_time: Optional[str] = Field(description="End time normalized to 24-hour HH:MM format. Null if not mentioned.")
-    category: Literal["Tech", "AI", "Investing", "Social", "Games", "Outdoor activity", "Spiritual"] = Field(description="Event category.")
+    category: Literal["Tech", "AI", "Investing", "Social", "Games", "Outdoor activity", "Spiritual", "Apartment Viewing"] = Field(description="Event category. Use 'Apartment Viewing' if the content is an apartment viewing schedule or listing.")
     price: str = Field(description="Ticket price or 'Free'.")
     location: Optional[str] = Field(description="Physical location or 'Online'.")
     description: str = Field(description="Short description of the event.")
@@ -98,7 +98,14 @@ def extract_event_info(input_text: str):
             f"If a year is missing, assume {current_year}. "
             f"Provide dates in YYYY-MM-DD format. "
             f"Convert all start and end times to strict 24-hour 'HH:MM' format, cleaning up any separators like '.' or ';' and converting from AM/PM if necessary (e.g., '14:00' instead of '14.00' or '2pm'). "
-            f"Do NOT invent times; return null if not present."
+            f"Do NOT invent times; return null if not present. "
+            f"Check if the text or URL has information like rooms and rents; if so, it is about an apartment viewing/visit. "
+            f"Apartment viewings can be provided as a combination of a URL (containing flat details) and text (containing the date/time of the visit). "
+            f"If the entry is an apartment viewing/visit: "
+            f"- Set the category to 'Apartment Viewing'. "
+            f"- Set the price to the rent (e.g., '1500 CHF' or '1500/month'). "
+            f"- Set the location to the apartment's physical address. "
+            f"- Set the title to include the street name and number of the apartment (e.g., 'Apartment Viewing: [Street Name] [Number]')."
         )
 
     # 1. Process URLs individually

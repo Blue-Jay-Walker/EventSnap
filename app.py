@@ -8,8 +8,34 @@ from calendar_api import get_calendar_service, get_or_create_calendar, add_event
 
 logger = logging.getLogger(__name__)
 
+# --- Mode Resolution & Configuration ---
+app_mode = st.query_params.get("mode", "event")
+
+if app_mode == "apartment":
+    APP_NAME = "HomeSnap"
+    APP_ICON = "🏠"
+    DEFAULT_CALENDAR = "Apartment Visits"
+    TEXT_PLACEHOLDER = "e.g. Viewing on Friday July 3rd at 6pm, rent is 2200 CHF at Bahnhofstrasse 10\nOR\nhttps://flatfox.ch/..."
+    SUBTITLE = "Capture apartment search viewings directly to your calendar."
+    
+    BANNER_LEAD = "Think of it as a Pocket where you throw in details about apartment viewings and visits in a separate Google Calendar."
+    BANNER_EG = "e.g. an email confirmation with viewing details? a URL from flatfox.ch, homegate.ch, or other listing sites? Just paste it."
+    BANNER_FEAT_2 = "The apartment listing URLs or description text will be sent to OpenAI's API for processing. OpenAI retains API data for up to 30 days for abuse monitoring, but does not use it to train models. Do not paste highly sensitive personal information."
+    BANNER_FEAT_3 = f"It will create a new calendar '{DEFAULT_CALENDAR}' and add viewings, not touching your main Calendar. You can even use a different Google account if you want."
+else:
+    APP_NAME = "EventSnap"
+    APP_ICON = "📅"
+    DEFAULT_CALENDAR = "Events to Decide"
+    TEXT_PLACEHOLDER = "e.g. Photography workshop in Zurich on June 15, 6-9pm\nOR\nhttps://eventbrite.com/..."
+    SUBTITLE = "Capture interesting events directly to your calendar."
+    
+    BANNER_LEAD = "Think of it as a Pocket where you throw in infos. about interesting events in a separate Google Calendar."
+    BANNER_EG = "e.g. an email with 5 events at your club or uni? a Url from meetup.com or any other website? No Problem, just paste it."
+    BANNER_FEAT_2 = "The event URLs or Text will be sent to OpenAI's API for processing. OpenAI retains API data for up to 30 days for abuse monitoring, but does not use it to train models. Do not paste highly sensitive personal information."
+    BANNER_FEAT_3 = f"It will create a new calendar '{DEFAULT_CALENDAR}' and add events, not touching your main Calendar. You can even use a different Google account if you want."
+
 # --- Page Config & Mobile Styling ---
-st.set_page_config(page_title="EventSnap", page_icon="📅", layout="centered")
+st.set_page_config(page_title=APP_NAME, page_icon=APP_ICON, layout="centered")
 
 # --- Base URL Resolution & Privacy Policy Routing ---
 try:
@@ -21,23 +47,29 @@ try:
 except Exception:
     base_url = "http://localhost:8501"
 
-privacy_url = f"{base_url}/?page=privacy"
+privacy_url = f"{base_url}/?page=privacy&mode={app_mode}"
 
 if st.query_params.get("page") == "privacy":
-    st.title("Privacy Policy for EventSnap")
-    st.write("This application is designed with privacy and security in mind. Please review how your data is handled below:")
+    st.title(f"Privacy Policy for {APP_NAME}")
+    st.write(f"This application is designed with privacy and security in mind. Please review how your data is handled below:")
     
     st.subheader("No Data Storage")
-    st.write("The App does not store any data. The events are stored directly in YOUR Google calendar. Login is handled securely by Google Login (OAuth).")
+    if app_mode == "apartment":
+        st.write(f"The App does not store any data. The apartment viewings are stored directly in YOUR Google calendar. Login is handled securely by Google Login (OAuth).")
+    else:
+        st.write(f"The App does not store any data. The events are stored directly in YOUR Google calendar. Login is handled securely by Google Login (OAuth).")
     
     st.subheader("Public LLM Processing")
-    st.write("The event URLs or Text you submit will be interpreted by a public LLM, in this case OpenAI. Do not submit highly sensitive personal text.")
+    if app_mode == "apartment":
+        st.write(f"The listing URLs or description text you submit will be interpreted by a public LLM, in this case OpenAI. Do not submit highly sensitive personal text.")
+    else:
+        st.write(f"The event URLs or Text you submit will be interpreted by a public LLM, in this case OpenAI. Do not submit highly sensitive personal text.")
     
     st.subheader("Dedicated Calendar")
-    st.write("A new calendar named **'Events to Decide'** will be created and used to add events. Your main Calendar remains completely untouched. You can even use a different Google account if you want.")
+    st.write(f"A new calendar named **'{DEFAULT_CALENDAR}'** will be created and used to add items. Your main Calendar remains completely untouched. You can even use a different Google account if you want.")
     
     st.subheader("Full Control")
-    st.write("You can revoke the permissions from your Google account anytime for EventSnap via your Google Account settings.")
+    st.write(f"You can revoke the permissions from your Google account anytime for {APP_NAME} via your Google Account settings.")
     
     st.write("---")
     st.info("You can close this tab to return to the app.")
@@ -115,8 +147,8 @@ if "code" in query_params:
 is_logged_in = st.session_state["credentials"] is not None
 
 def render_header_and_banner():
-    st.markdown(f"<h1 class='title'>{icon_html}EventSnap 📸</h1>", unsafe_allow_html=True)
-    st.markdown("<p class='subtitle'>Capture interesting events directly to your calendar.</p>", unsafe_allow_html=True)
+    st.markdown(f"<h1 class='title'>{icon_html}{APP_NAME} {APP_ICON}</h1>", unsafe_allow_html=True)
+    st.markdown(f"<p class='subtitle'>{SUBTITLE}</p>", unsafe_allow_html=True)
     st.markdown(f"""
     <div style="
         background: linear-gradient(135deg, #e8f4fd 0%, #f0e6ff 100%);
@@ -129,17 +161,17 @@ def render_header_and_banner():
         color: #333;
     ">
         <p style="margin: 0 0 0.4rem 0; font-weight: 600; font-size: 1rem;">
-            Think of it as a Pocket where you throw in infos. about interesting events in a separate Google Calendar.
+            {BANNER_LEAD}
         </p>
         <p style="margin: 0 0 0.8rem 0; font-size: 0.85rem; color: #555; font-style: italic;">
-            e.g. an email with 5 events at your club or uni? a Url from meetup.com or any other website? No Problem, just paste it.
+            {BANNER_EG}
         </p>
         <p style="margin: 0 0 0.4rem 0; font-weight: 600;">Key Features:</p>
         <ol style="margin: 0; padding-left: 1.4rem;">
-            <li>The App does not store any data. The events are stored in YOUR Google calendar. Login is handled by Google OAuth.</li>
-            <li>The event URLs or Text will be sent to OpenAI's API for processing. OpenAI retains API data for up to 30 days for abuse monitoring, but does not use it to train models. Do not paste highly sensitive personal information.</li>
-            <li>It will create a new calendar "Events to Decide" and add events, not touching your main Calendar. You can even use a different Google account if you want.</li>
-            <li>You can revoke the permissions from your Google account anytime for EventSnap.</li>
+            <li>The App does not store any data. The entries are stored in YOUR Google calendar. Login is handled by Google OAuth.</li>
+            <li>{BANNER_FEAT_2}</li>
+            <li>{BANNER_FEAT_3}</li>
+            <li>You can revoke the permissions from your Google account anytime for {APP_NAME}.</li>
         </ol>
         <p style="margin-top: 1rem; text-align: center;">
             <a href="{privacy_url}" target="_blank" style="color: #4285F4; text-decoration: none; font-weight: 600;">🔒 View Privacy Policy</a>
@@ -217,41 +249,48 @@ current_text = st.session_state.get("event_text", "")
 num_lines = current_text.count("\n") + 1
 dynamic_height = max(150, min(num_lines * 24 + 40, 800))  # 150px min, 800px max
 
+input_label = "Paste an apartment listing URL or viewing invitation details:" if app_mode == "apartment" else "Paste an event URL or description:"
+button_label = "Capture Viewing" if app_mode == "apartment" else "Capture Event"
+
 event_input = st.text_area(
-    "Paste an event URL or description:",
+    input_label,
     key="event_text",
     height=dynamic_height,
-    placeholder="e.g. Photography workshop in Zurich on June 15, 6-9pm\nOR\nhttps://eventbrite.com/..."
+    placeholder=TEXT_PLACEHOLDER
 )
 
 # Align Capture on the left, Clear on the right
 col_btn1, col_space, col_btn2 = st.columns([2, 6, 2])
 with col_btn1:
-    submitted = st.button("Capture Event", use_container_width=True)
+    submitted = st.button(button_label, use_container_width=True)
 with col_btn2:
     clear_btn = st.button("Clear", on_click=clear_event_text, use_container_width=True)
         
 if submitted:
+    input_error = "Please enter a URL or viewing details." if app_mode == "apartment" else "Please enter a URL or event description."
+    spinner_msg = "Extracting viewing details..." if app_mode == "apartment" else "Extracting event details..."
+    
     if not event_input.strip():
-        st.error("Please enter a URL or event description.")
+        st.error(input_error)
     else:
-        with st.spinner("Extracting event details..."):
+        with st.spinner(spinner_msg):
             try:
                 # 1. Extract Info
                 details_list = extract_event_info(event_input)
                 
                 # Process each extracted event
                 for idx, details in enumerate(details_list, start=1):
-                    st.subheader(f"Event #{idx}")
+                    entry_type = "Viewing" if app_mode == "apartment" else "Event"
+                    st.subheader(f"{entry_type} #{idx}")
                     # Show extracted preview (optional, for UX)
                     with st.expander("Extracted Details", expanded=False):
                         st.json(details.model_dump())
                     # 3. Save to Calendar for each event
                     try:
                         service = get_calendar_service(st.session_state["credentials"])
-                        calendar_id = get_or_create_calendar(service)
+                        calendar_id = get_or_create_calendar(service, DEFAULT_CALENDAR)
                         event_link = add_event_to_calendar(service, calendar_id, details)
-                        st.success(f"🎉 Event #{idx} added to 'Events to Decide' calendar! [View Event in Google Calendar]({event_link})")
+                        st.success(f"🎉 {entry_type} #{idx} added to '{DEFAULT_CALENDAR}' calendar! [View in Google Calendar]({event_link})")
                     except Exception as e:
                         logger.exception(f"Failed to add event #{idx} to calendar.")
                         st.error(f"Failed to add Event #{idx} to calendar. Please check your Google connection and try again.")
