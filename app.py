@@ -104,9 +104,29 @@ st.markdown("""
         color: white;
     }
     /* Style Clear button red */
-    div[data-testid="column"]:nth-of-type(1) button {
+    div.st-key-clearbtn button {
         background-color: #d32f2f !important;
         color: white !important;
+        border: 1px solid #d32f2f !important;
+    }
+    div.st-key-clearbtn button:hover {
+        background-color: #b71c1c !important;
+        border: 1px solid #b71c1c !important;
+    }
+    /* Style Logout button orange */
+    div.st-key-logoutbtn button {
+        background-color: #FF9800 !important; /* Orange */
+        color: white !important;
+        height: 32px !important;
+        padding: 0 10px !important;
+        font-size: 0.8rem !important;
+        border-radius: 6px !important;
+        margin-top: 4px !important;
+        font-weight: 600 !important;
+        width: auto !important;
+    }
+    div.st-key-logoutbtn button:hover {
+        background-color: #e65100 !important;
     }
     .stTextInput>div>div>input {
         border-radius: 8px;
@@ -208,22 +228,7 @@ if not is_logged_in:
 # --- Top Right Header (Logout Only) ---
 col_space, col_logout = st.columns([9, 2])
 with col_logout:
-    st.markdown("""
-        <style>
-        /* Style the logout button in the top-right columns specifically */
-        div[data-testid="column"]:nth-of-type(2) button {
-            background-color: #FF9800 !important; /* Orange */
-            color: white !important;
-            height: 32px !important;
-            padding: 0 10px !important;
-            font-size: 0.8rem !important;
-            border-radius: 6px !important;
-            margin-top: 4px !important;
-            font-weight: 600 !important;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-    if st.button("Log Out"):
+    if st.button("Log Out", key="logoutbtn"):
         # Attempt to revoke the Google OAuth token before clearing session
         tokens = st.session_state.get("google_tokens")
         if tokens:
@@ -266,7 +271,7 @@ event_input = st.text_area(
 # Align Clear on the left, Capture on the right
 col_btn1, col_space, col_btn2 = st.columns([2, 6, 2])
 with col_btn1:
-    clear_btn = st.button("Clear", on_click=clear_event_text, use_container_width=True)
+    clear_btn = st.button("Clear", on_click=clear_event_text, use_container_width=True, key="clearbtn")
 with col_btn2:
     submitted = st.button(button_label, use_container_width=True)
         
