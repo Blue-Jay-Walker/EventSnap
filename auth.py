@@ -1,8 +1,13 @@
 import secrets
+import logging
 import urllib.parse
 import requests
 import streamlit as st
 from google.oauth2.credentials import Credentials
+
+logger = logging.getLogger(__name__)
+
+REVOKE_URL = "https://oauth2.googleapis.com/revoke"
 
 SCOPES = [
     "https://www.googleapis.com/auth/calendar.app.created",
@@ -79,3 +84,24 @@ def refresh_access_token(refresh_token: str) -> dict:
     response = requests.post(TOKEN_URL, data=data, timeout=30)
     response.raise_for_status()
     return response.json()
+
+
+def revoke_token(token: str) -> bool:
+    """Revoke a Google OAuth token (access or refresh) at Google's endpoint.
+    Returns True if revocation succeeded, False otherwise."""
+    try:
+        response = requests.post(
+            REVOKE_URL,
+            params={"token": token},
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            timeout=10,
+        )
+        if response.status_code == 200:
+            logger.info("Google OAuth token revoked successfully.")
+            return True
+        else:
+            logger.warning(f"Token revocation returned status {response.status_code}.")
+            return False
+    except Exception:
+        logger.exception("Failed to revoke Google OAuth token.")
+        return False
