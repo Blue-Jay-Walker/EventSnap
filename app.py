@@ -150,15 +150,18 @@ if "code" in query_params:
 
 is_logged_in = st.session_state["credentials"] is not None
 
-def render_header_and_banner():
+def render_title():
     st.markdown(f"<h1 class='title'>{icon_html}{APP_NAME} {APP_ICON}</h1>", unsafe_allow_html=True)
     st.markdown(f"<p class='subtitle'>{SUBTITLE}</p>", unsafe_allow_html=True)
+
+def render_info_banner():
     st.markdown(f"""
     <div style="
         background: linear-gradient(135deg, #e8f4fd 0%, #f0e6ff 100%);
         border-left: 4px solid #4285F4;
         border-radius: 10px;
         padding: 1.2rem 1.5rem;
+        margin-top: 2rem;
         margin-bottom: 1.5rem;
         font-size: 0.92rem;
         line-height: 1.6;
@@ -184,7 +187,8 @@ def render_header_and_banner():
     """, unsafe_allow_html=True)
 
 if not is_logged_in:
-    render_header_and_banner()
+    render_title()
+    render_info_banner()
     st.warning("Please log in to your Google Account to capture events.")
 
     try:
@@ -239,8 +243,8 @@ with col_logout:
         st.session_state.pop("google_tokens", None)
         st.rerun()
 
-# --- Main App Title & Banner ---
-render_header_and_banner()
+# --- Main App Title ---
+render_title()
 
 if "event_text" not in st.session_state:
     st.session_state["event_text"] = ""
@@ -301,3 +305,6 @@ if submitted:
             except Exception as e:
                 logger.exception("Error during event extraction.")
                 st.error("An unexpected error occurred while processing your input. Please try again.")
+
+# --- Information Banner at the Bottom ---
+render_info_banner()
