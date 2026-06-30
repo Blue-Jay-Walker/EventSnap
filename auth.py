@@ -18,12 +18,12 @@ AUTH_BASE_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_URL = "https://oauth2.googleapis.com/token"
 
 
-def get_login_url() -> str:
+def get_login_url(mode: str = "event") -> str:
     """Build the Google OAuth authorization URL."""
     client_id = st.secrets["google_oauth"]["client_id"]
     redirect_uri = st.secrets["google_oauth"]["redirect_uri"]
 
-    state = secrets.token_urlsafe(32)
+    state = f"{secrets.token_urlsafe(32)}__mode_{mode}"
     st.session_state["oauth_state"] = state
 
     params = {

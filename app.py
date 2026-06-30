@@ -137,8 +137,12 @@ if "code" in query_params:
         state_val = query_params["state"][0] if isinstance(query_params["state"], list) else query_params.get("state")
         creds = exchange_code(code_val, state_val)
         st.session_state["credentials"] = creds
-        # Clear the code and state from the URL
+        
+        # Clear the code and state from the URL, preserving the mode if present in state
         st.query_params.clear()
+        if state_val and "__mode_apartment" in state_val:
+            st.query_params["mode"] = "apartment"
+            
         st.rerun()
     except Exception as e:
         logger.exception("Authentication failed during code exchange.")
@@ -184,7 +188,7 @@ if not is_logged_in:
     st.warning("Please log in to your Google Account to capture events.")
 
     try:
-        login_url = get_login_url()
+        login_url = get_login_url(app_mode)
         st.markdown(f"### [🔗 Log In with Google]({login_url})")
     except Exception as e:
         logger.exception("Could not generate login URL.")
