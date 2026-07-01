@@ -1,4 +1,5 @@
 import secrets
+import base64
 import logging
 import urllib.parse
 import requests
@@ -168,19 +169,52 @@ def revoke_token(token: str) -> bool:
         return False
 
 
+def _xor_cipher(data: str) -> str:
+    """XOR cipher for obfuscation/encryption using client_secret as key."""
+    client_secret = st.secrets["google_oauth"]["client_secret"]
+    key_bytes = client_secret.encode()
+    data_bytes = data.encode()
+    xor_bytes = bytes(b ^ key_bytes[i % len(key_bytes)] for i, b in enumerate(data_bytes))
+    return base64.b64encode(xor_bytes).decode()
+
+
+def _xor_decipher(data_b64: str) -> str:
+    """XOR decipher to decrypt cookie content."""
+    client_secret = st.secrets["google_oauth"]["client_secret"]
+    key_bytes = client_secret.encode()
+    data_bytes = base64.b64decode(data_b64.encode())
+    xor_bytes = bytes(b ^ key_bytes[i % len(key_bytes)] for i, b in enumerate(data_bytes))
+    return xor_bytes.decode()
+
+
 def set_tokens_cookie(tokens: dict):
-    """Write the tokens to a browser cookie using JavaScript (valid for 24 hours)."""
+    """Write the tokens to a browser cookie using JavaScript (valid for 24 hours, encrypted)."""
     import json
     try:
         val_str = json.dumps(tokens)
-        val_str_escaped = val_str.replace("'", "\\'")
+        encrypted_val = _xor_cipher(val_str)
         components.html(f"""
         <script>
-        document.cookie = "google_tokens=" + encodeURIComponent('{val_str_escaped}') + "; path=/; max-age=86400; SameSite=Lax; Secure";
+        document.cookie = "google_tokens=" + encodeURIComponent('{encrypted_val}') + "; path=/; max-age=86400; SameSite=Lax; Secure";
         </script>
         """, height=0)
     except Exception as e:
         logger.error(f"Failed to set tokens cookie: {e}")
+
+
+def get_tokens_from_cookie(cookie_val: str) -> dict:
+    """Decrypt and parse the tokens dictionary from the cookie value."""
+    import json
+    import urllib.parse
+    if not cookie_val:
+        return None
+    try:
+        cookie_decoded = urllib.parse.unquote(cookie_val)
+        decrypted_str = _xor_decipher(cookie_decoded)
+        return json.loads(decrypted_str)
+    except Exception as e:
+        logger.warning(f"Failed to decrypt tokens cookie: {e}")
+        return None
 
 
 def delete_tokens_cookie():

@@ -9,6 +9,7 @@ from auth import (
     set_tokens_cookie,
     delete_tokens_cookie,
     check_and_refresh_tokens,
+    get_tokens_from_cookie,
 )
 from extractor import extract_event_info
 from calendar_api import get_calendar_service, get_or_create_calendar, add_event_to_calendar
@@ -178,13 +179,12 @@ if "credentials" not in st.session_state:
 cookies = getattr(st, "context", None) and getattr(st.context, "cookies", None)
 if not st.session_state["credentials"] and cookies and "google_tokens" in cookies:
     try:
-        import urllib.parse
-        import json
         from google.oauth2.credentials import Credentials
         
         cookie_val = cookies["google_tokens"]
-        cookie_decoded = urllib.parse.unquote(cookie_val)
-        tokens = json.loads(cookie_decoded)
+        tokens = get_tokens_from_cookie(cookie_val)
+        if not tokens:
+            raise ValueError("Corrupted or undecryptable token cookie")
         
         # Check and refresh access token if it's close to expiry
         tokens, was_refreshed = check_and_refresh_tokens(tokens)
