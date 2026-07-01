@@ -51,6 +51,20 @@ This file contains scenarios to verify the event and apartment viewing extractio
   * App successfully scrapes the page content.
   * Correct title, date, time, price, and location are parsed.
 
+
+### Test Case 1.4: Event Missing End Time (Default 2 Hours)
+* **Input:**
+  ```text
+  test event today at 11pm
+  ```
+* **Expected Output (assuming today is 2026-07-01):**
+  * **Title:** test event
+  * **Start Date:** `2026-07-01`
+  * **Start Time:** `23:00`
+  * **End Date:** `2026-07-02` (resolves roll-over date correctly)
+  * **End Time:** `01:00` (defaults to start time + 2 hours)
+  * **Category:** `Social` or `Tech`
+
 ---
 
 ## 2. Apartment Mode (HomeSnap 🏠)
@@ -97,3 +111,16 @@ This file contains scenarios to verify the event and apartment viewing extractio
   * **Price:** `[Rent from Flatfox listing]`
   * **Location:** `Schilplinstrasse 10, 5200 Brugg AG`
   * **Source URL:** `https://flatfox.ch/en/flat/schilplinstrasse-10-5200-brugg-ag/86136246/`
+
+### Test Case 2.4: Apartment Viewing Missing End Time (Default 30 Mins)
+* **Input:**
+  ```text
+  Apartment viewing at Main Street 5 on July 10 at 14:00
+  ```
+* **Expected Output:**
+  * **Title:** `Apartment Viewing: Main Street 5`
+  * **Start Date:** `[Current Year]-07-10`
+  * **Start Time:** `14:00`
+  * **End Date:** `[Current Year]-07-10`
+  * **End Time:** `14:30` (defaults to start time + 30 minutes)
+  * **Category:** `Apartment Viewing`

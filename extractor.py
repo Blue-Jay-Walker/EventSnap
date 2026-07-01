@@ -183,10 +183,27 @@ def extract_event_info(input_text: str):
         )
         details_list = completion.choices[0].message.parsed.events
         
-        # Ensure source_url is populated from the URL if not set
+        # Ensure source_url is populated and calculate default end times if missing
         for details in details_list:
             if urls and not details.source_url:
                 details.source_url = urls[0]
+                
+            # If start_time is present but end_time is missing, calculate default end time
+            if details.start_date and details.start_time and not details.end_time:
+                try:
+                    from datetime import datetime, timedelta
+                    start_dt = datetime.strptime(f"{details.start_date} {details.start_time}", "%Y-%m-%d %H:%M")
+                    
+                    if details.category == "Apartment Viewing":
+                        duration = timedelta(minutes=30)
+                    else:
+                        duration = timedelta(hours=2)
+                        
+                    end_dt = start_dt + duration
+                    details.end_date = end_dt.strftime("%Y-%m-%d")
+                    details.end_time = end_dt.strftime("%H:%M")
+                except Exception:
+                    pass
                 
         return details_list
     except Exception as e:
