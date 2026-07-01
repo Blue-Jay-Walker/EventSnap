@@ -3,6 +3,7 @@ import logging
 import urllib.parse
 import requests
 import streamlit as st
+import streamlit.components.v1 as components
 import hmac
 import hashlib
 import time
@@ -114,6 +115,8 @@ def exchange_code(code: str, returned_state: str = None) -> Credentials:
     response = requests.post(TOKEN_URL, data=data, timeout=30)
     response.raise_for_status()
     tokens = response.json()
+    # Store dynamic expiration timestamp
+    tokens["expiry_timestamp"] = time.time() + tokens.get("expires_in", 3600)
 
     granted_scopes = tokens.get("scope", "").split()
 
@@ -163,3 +166,47 @@ def revoke_token(token: str) -> bool:
     except Exception:
         logger.exception("Failed to revoke Google OAuth token.")
         return False
+
+
+def set_tokens_cookie(tokens: dict):
+    """Write the tokens to a browser cookie using JavaScript (valid for 24 hours)."""
+    import json
+    try:
+        val_str = json.dumps(tokens)
+        val_str_escaped = val_str.replace("'", "\\'")
+        components.html(f"""
+        <script>
+        document.cookie = "google_tokens=" + encodeURIComponent('{val_str_escaped}') + "; path=/; max-age=86400; SameSite=Lax; Secure";
+        </script>
+        """, height=0)
+    except Exception as e:
+        logger.error(f"Failed to set tokens cookie: {e}")
+
+
+def delete_tokens_cookie():
+    """Delete the tokens browser cookie using JavaScript."""
+    try:
+        components.html("""
+        <script>
+        document.cookie = "google_tokens=; path=/; max-age=0; SameSite=Lax; Secure";
+        </script>
+        """, height=0)
+    except Exception as e:
+        logger.error(f"Failed to delete tokens cookie: {e}")
+
+
+def check_and_refresh_tokens(tokens: dict) -> tuple[dict, bool]:
+    """Check if the access token is close to expiry, and refresh it if needed.
+    Returns (updated_tokens, was_refreshed)."""
+    expiry = tokens.get("expiry_timestamp", 0)
+    # If expiring in less than 5 minutes, refresh
+    if expiry - time.time() < 300:
+        refresh_token = tokens.get("refresh_token")
+        if not refresh_token:
+            raise ValueError("No refresh token available.")
+            
+        refreshed_data = refresh_access_token(refresh_token)
+        tokens["access_token"] = refreshed_data["access_token"]
+        tokens["expiry_timestamp"] = time.time() + refreshed_data.get("expires_in", 3600)
+        return tokens, True
+    return tokens, False

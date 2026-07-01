@@ -2,7 +2,14 @@ import streamlit as st
 import base64
 import os
 import logging
-from auth import get_login_url, exchange_code, revoke_token
+from auth import (
+    get_login_url,
+    exchange_code,
+    revoke_token,
+    set_tokens_cookie,
+    delete_tokens_cookie,
+    check_and_refresh_tokens,
+)
 from extractor import extract_event_info
 from calendar_api import get_calendar_service, get_or_create_calendar, add_event_to_calendar
 
@@ -163,9 +170,44 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- Authentication ---
+# --- Authentication & Auto-Login from Cookie ---
 if "credentials" not in st.session_state:
     st.session_state["credentials"] = None
+
+# Attempt automatic login from cookie if no active session credentials
+cookies = getattr(st, "context", None) and getattr(st.context, "cookies", None)
+if not st.session_state["credentials"] and cookies and "google_tokens" in cookies:
+    try:
+        import urllib.parse
+        import json
+        from google.oauth2.credentials import Credentials
+        
+        cookie_val = cookies["google_tokens"]
+        cookie_decoded = urllib.parse.unquote(cookie_val)
+        tokens = json.loads(cookie_decoded)
+        
+        # Check and refresh access token if it's close to expiry
+        tokens, was_refreshed = check_and_refresh_tokens(tokens)
+        if was_refreshed:
+            set_tokens_cookie(tokens)
+            st.session_state["google_tokens"] = tokens
+            
+        from auth import SCOPES, TOKEN_URL
+        creds = Credentials(
+            token=tokens["access_token"],
+            refresh_token=tokens.get("refresh_token"),
+            token_uri=TOKEN_URL,
+            client_id=st.secrets["google_oauth"]["client_id"],
+            client_secret=st.secrets["google_oauth"]["client_secret"],
+            scopes=tokens.get("scope", "").split() or SCOPES,
+        )
+        st.session_state["credentials"] = creds
+        # Save the tokens dict in session state so logout can read it to revoke
+        st.session_state["google_tokens"] = tokens
+        st.rerun()
+    except Exception as e:
+        logger.warning(f"Automatic cookie login failed: {e}")
+        delete_tokens_cookie()
 
 # Check query params for auth code
 query_params = st.query_params
@@ -177,6 +219,11 @@ if "code" in query_params:
         creds = exchange_code(code_val, state_val)
         st.session_state["credentials"] = creds
         
+        # Set tokens cookie on successful login
+        tokens = st.session_state.get("google_tokens")
+        if tokens:
+            set_tokens_cookie(tokens)
+            
         # Clear the code and state from the URL, preserving the mode if present in state
         st.query_params.clear()
         if state_val and "__mode_apartment" in state_val:
@@ -259,6 +306,7 @@ with col_logout:
                     st.toast("Could not revoke Google access. You can revoke it manually in your Google Account security settings.")
         st.session_state["credentials"] = None
         st.session_state.pop("google_tokens", None)
+        delete_tokens_cookie()
         st.rerun()
 
 # --- Main App Title ---

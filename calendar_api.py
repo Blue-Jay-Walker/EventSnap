@@ -72,15 +72,21 @@ def add_event_to_calendar(service, calendar_id: str, event_details):
     end_date = event_details.end_date or start_date
     end_time = event_details.end_time
     
+    # Default duration: 30 minutes for apartment viewings, 2 hours for other events
+    if event_details.category == "Apartment Viewing":
+        default_duration = timedelta(minutes=30)
+    else:
+        default_duration = timedelta(hours=2)
+        
     if start_dt:
         if end_time:
             try:
                 end_dt = datetime.strptime(f"{end_date} {end_time}", "%Y-%m-%d %H:%M")
             except ValueError:
-                end_dt = start_dt + timedelta(hours=2)
+                end_dt = start_dt + default_duration
         else:
-            # Default to 2 hours after start time if end time is not specified
-            end_dt = start_dt + timedelta(hours=2)
+            # Default if end time is not specified
+            end_dt = start_dt + default_duration
             
         event_body['start'] = {
             'dateTime': start_dt.strftime("%Y-%m-%dT%H:%M:00"),
