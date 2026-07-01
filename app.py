@@ -2,7 +2,7 @@ import streamlit as st
 import base64
 import os
 import logging
-from auth import (
+from auth_helper import (
     get_login_url,
     exchange_code,
     revoke_token,
@@ -192,7 +192,7 @@ if not st.session_state["credentials"] and cookies and "google_tokens" in cookie
             set_tokens_cookie(tokens)
             st.session_state["google_tokens"] = tokens
             
-        from auth import SCOPES, TOKEN_URL
+        from auth_helper import SCOPES, TOKEN_URL
         creds = Credentials(
             token=tokens["access_token"],
             refresh_token=tokens.get("refresh_token"),
