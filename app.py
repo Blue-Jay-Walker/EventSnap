@@ -390,7 +390,7 @@ if submitted:
                 st.session_state["last_capture_time"] = time.time()
             except Exception as e:
                 logger.exception("Error during event extraction.")
-                st.error("An unexpected error occurred while processing your input. Please try again.")
+                st.error(f"An unexpected error occurred: {e}. Please try again.")
 
 # --- Information Banner at the Bottom ---
 render_info_banner()

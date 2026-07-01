@@ -7,6 +7,9 @@ from typing import Optional, Literal
 from urllib.parse import urlparse
 import re
 from datetime import datetime
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Structured output definition
 class EventDetails(BaseModel):
@@ -207,11 +210,5 @@ def extract_event_info(input_text: str):
                 
         return details_list
     except Exception as e:
-        st.error(f"LLM extraction failed: {e}")
-        # Return a fallback empty event if nothing extracted
-        fallback_url = urls[0] if urls else None
-        return [EventDetails(
-            title="", start_date=None, start_time=None, end_date=None,
-            end_time=None, category="Tech", price="", location=None,
-            description="", source_url=fallback_url,
-        )]
+        logger.error(f"LLM extraction failed: {e}")
+        raise e

@@ -98,6 +98,15 @@ def add_event_to_calendar(service, calendar_id: str, event_details):
         }
     else:
         # All-day event
+        # Google Calendar requires the end date to be exclusive for all-day events.
+        # If end_date is identical to start_date, increment it by 1 day.
+        if end_date == start_date:
+            try:
+                start_dt_parsed = datetime.strptime(start_date, "%Y-%m-%d")
+                end_dt_parsed = start_dt_parsed + timedelta(days=1)
+                end_date = end_dt_parsed.strftime("%Y-%m-%d")
+            except Exception:
+                pass
         event_body['start'] = {'date': start_date}
         event_body['end'] = {'date': end_date}
         
