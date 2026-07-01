@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 from typing import Optional, Literal
 from urllib.parse import urlparse
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 
 logger = logging.getLogger(__name__)
@@ -194,7 +194,6 @@ def extract_event_info(input_text: str):
             # If start_time is present but end_time is missing, calculate default end time
             if details.start_date and details.start_time and not details.end_time:
                 try:
-                    from datetime import datetime, timedelta
                     start_dt = datetime.strptime(f"{details.start_date} {details.start_time}", "%Y-%m-%d %H:%M")
                     
                     if details.category == "Apartment Viewing":
