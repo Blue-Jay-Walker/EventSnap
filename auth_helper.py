@@ -188,22 +188,17 @@ def _decrypt(data: str) -> str:
     return _get_fernet().decrypt(data.encode()).decode()
 
 
-def set_tokens_cookie(tokens: dict, redirect_url: str = None):
-    """Write the tokens to a browser cookie using JavaScript (valid for 24 hours, encrypted).
-    
-    If redirect_url is provided, the JS navigates the parent window to that URL
-    immediately after setting the cookie — both ops happen in the same synchronous
-    script block so the cookie is guaranteed committed before navigation.
-    """
+def set_tokens_cookie(tokens: dict):
+    """Write the tokens to a browser cookie using JavaScript (valid for 24 hours, encrypted)."""
     import json
     try:
         val_str = json.dumps(tokens)
         encrypted_val = _encrypt(val_str)
-        redirect_js = f"window.top.location.href = '{redirect_url}';" if redirect_url else ""
         components.html(f"""
         <script>
-        document.cookie = "google_tokens=" + encodeURIComponent('{encrypted_val}') + "; path=/; max-age=86400; SameSite=Lax; Secure";
-        {redirect_js}
+        const cookieStr = "google_tokens=" + encodeURIComponent('{encrypted_val}') + "; path=/; max-age=86400; SameSite=Lax; Secure";
+        try {{ window.parent.document.cookie = cookieStr; }} catch(e) {{}}
+        try {{ document.cookie = cookieStr; }} catch(e) {{}}
         </script>
         """, height=1)
     except Exception as e:
@@ -225,18 +220,14 @@ def get_tokens_from_cookie(cookie_val: str) -> dict:
         return None
 
 
-def delete_tokens_cookie(redirect_url: str = None):
-    """Delete the tokens browser cookie using JavaScript.
-    
-    If redirect_url is provided, the JS navigates the parent window to that URL
-    immediately after deleting the cookie.
-    """
+def delete_tokens_cookie():
+    """Delete the tokens browser cookie using JavaScript."""
     try:
-        redirect_js = f"window.top.location.href = '{redirect_url}';" if redirect_url else ""
-        components.html(f"""
+        components.html("""
         <script>
-        document.cookie = "google_tokens=; path=/; max-age=0; SameSite=Lax; Secure";
-        {redirect_js}
+        const cookieStr = "google_tokens=; path=/; max-age=0; SameSite=Lax; Secure";
+        try { window.parent.document.cookie = cookieStr; } catch(e) {}
+        try { document.cookie = cookieStr; } catch(e) {}
         </script>
         """, height=1)
     except Exception as e:
