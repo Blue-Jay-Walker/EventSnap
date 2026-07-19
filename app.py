@@ -17,6 +17,7 @@ from calendar_api import get_calendar_service, get_or_create_calendar, add_event
 logger = logging.getLogger(__name__)
 
 # --- Mode Resolution & Configuration ---
+APP_VERSION = "5.0"
 app_mode = st.query_params.get("mode", "event")
 
 if app_mode == "apartment":
@@ -24,7 +25,7 @@ if app_mode == "apartment":
     APP_ICON = "🏠"
     DEFAULT_CALENDAR = "Apartment Visits"
     TEXT_PLACEHOLDER = "e.g. Viewing on Friday July 3rd at 6pm, rent is 2200 CHF at Bahnhofstrasse 10\nOR\nhttps://flatfox.ch/..."
-    SUBTITLE = "Capture apartment search viewings directly to your calendar."
+    SUBTITLE = f"Capture apartment search viewings directly to your calendar. · v{APP_VERSION}"
     
     BANNER_LEAD = "Think of it as a Pocket where you throw in details about apartment viewings and visits in a separate Google Calendar."
     BANNER_EG = "e.g. an email confirmation with viewing details? a URL from flatfox.ch, homegate.ch, or other listing sites? Just paste it."
@@ -35,7 +36,7 @@ else:
     APP_ICON = "📅"
     DEFAULT_CALENDAR = "Events to Decide"
     TEXT_PLACEHOLDER = "e.g. Photography workshop in Zurich on June 15, 6-9pm\nOR\nhttps://eventbrite.com/..."
-    SUBTITLE = "Capture interesting events directly to your calendar."
+    SUBTITLE = f"Capture interesting events directly to your calendar. · v{APP_VERSION}"
     
     BANNER_LEAD = "Think of it as a Pocket where you throw in infos. about interesting events in a separate Google Calendar."
     BANNER_EG = "e.g. an email with 5 events at your club or uni? a Url from meetup.com or any other website? No Problem, just paste it."
