@@ -191,6 +191,8 @@ if not st.session_state["credentials"] and cookies and "google_tokens" in cookie
         if was_refreshed:
             set_tokens_cookie(tokens)
             st.session_state["google_tokens"] = tokens
+            # Don't rerun here — let the normal flow continue so the JS
+            # cookie-setter has a chance to execute before the next page load.
             
         from auth_helper import SCOPES, TOKEN_URL
         creds = Credentials(
@@ -204,7 +206,6 @@ if not st.session_state["credentials"] and cookies and "google_tokens" in cookie
         st.session_state["credentials"] = creds
         # Save the tokens dict in session state so logout can read it to revoke
         st.session_state["google_tokens"] = tokens
-        st.rerun()
     except Exception as e:
         logger.warning(f"Automatic cookie login failed: {e}")
         delete_tokens_cookie()
@@ -228,7 +229,11 @@ if "code" in query_params:
         st.query_params.clear()
         if state_val and "__mode_apartment" in state_val:
             st.query_params["mode"] = "apartment"
-            
+        
+        # Small delay to give the JS cookie-setter time to commit the cookie
+        # in the browser before the rerun navigates to the home page.
+        import time as _time
+        _time.sleep(0.5)
         st.rerun()
     except Exception as e:
         logger.exception("Authentication failed during code exchange.")
@@ -367,7 +372,10 @@ if submitted:
         with st.spinner(spinner_msg):
             try:
                 # 1. Extract Info
-                details_list = extract_event_info(event_input)
+                details_list = extract_event_info(
+                    event_input,
+                    model="gpt-4.1-nano",  # Or "gpt-4o-mini"
+                )
                 
                 # Process each extracted event
                 for idx, details in enumerate(details_list, start=1):
