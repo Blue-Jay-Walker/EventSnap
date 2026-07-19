@@ -1,13 +1,14 @@
 import secrets
 import base64
+import hashlib
 import logging
 import urllib.parse
 import requests
 import streamlit as st
 import streamlit.components.v1 as components
 import hmac
-import hashlib
 import time
+from cryptography.fernet import Fernet
 from google.oauth2.credentials import Credentials
 
 logger = logging.getLogger(__name__)
@@ -90,7 +91,8 @@ def get_login_url(mode: str = "event") -> str:
         "response_type": "code",
         "scope": " ".join(SCOPES),
         "access_type": "offline",
-        "prompt": "consent",
+        # select_account: shows account picker but skips re-consent for returning users
+        "prompt": "select_account",
         "state": state,
     }
 
@@ -169,33 +171,41 @@ def revoke_token(token: str) -> bool:
         return False
 
 
-def _xor_cipher(data: str) -> str:
-    """XOR cipher for obfuscation/encryption using client_secret as key."""
-    client_secret = st.secrets["google_oauth"]["client_secret"]
-    key_bytes = client_secret.encode()
-    data_bytes = data.encode()
-    xor_bytes = bytes(b ^ key_bytes[i % len(key_bytes)] for i, b in enumerate(data_bytes))
-    return base64.b64encode(xor_bytes).decode()
+def _get_fernet() -> Fernet:
+    """Derive a Fernet key from the OAuth client_secret using SHA-256.
+    Fernet provides AES-128-CBC encryption + HMAC-SHA256 authentication.
+    """
+    secret = st.secrets["google_oauth"]["client_secret"].encode()
+    key = base64.urlsafe_b64encode(hashlib.sha256(secret).digest())
+    return Fernet(key)
 
 
-def _xor_decipher(data_b64: str) -> str:
-    """XOR decipher to decrypt cookie content."""
-    client_secret = st.secrets["google_oauth"]["client_secret"]
-    key_bytes = client_secret.encode()
-    data_bytes = base64.b64decode(data_b64.encode())
-    xor_bytes = bytes(b ^ key_bytes[i % len(key_bytes)] for i, b in enumerate(data_bytes))
-    return xor_bytes.decode()
+def _encrypt(data: str) -> str:
+    """Encrypt a string with Fernet (AES-128-CBC + HMAC-SHA256)."""
+    return _get_fernet().encrypt(data.encode()).decode()
 
 
-def set_tokens_cookie(tokens: dict):
-    """Write the tokens to a browser cookie using JavaScript (valid for 24 hours, encrypted)."""
+def _decrypt(data: str) -> str:
+    """Decrypt a Fernet-encrypted string. Raises InvalidToken on tampering."""
+    return _get_fernet().decrypt(data.encode()).decode()
+
+
+def set_tokens_cookie(tokens: dict, redirect_url: str = None):
+    """Write the tokens to a browser cookie using JavaScript (valid for 24 hours, encrypted).
+    
+    If redirect_url is provided, the JS navigates the parent window to that URL
+    immediately after setting the cookie — both ops happen in the same synchronous
+    script block so the cookie is guaranteed committed before navigation.
+    """
     import json
     try:
         val_str = json.dumps(tokens)
-        encrypted_val = _xor_cipher(val_str)
+        encrypted_val = _encrypt(val_str)
+        redirect_js = f"window.top.location.href = '{redirect_url}';" if redirect_url else ""
         components.html(f"""
         <script>
         document.cookie = "google_tokens=" + encodeURIComponent('{encrypted_val}') + "; path=/; max-age=86400; SameSite=Lax; Secure";
+        {redirect_js}
         </script>
         """, height=0)
     except Exception as e:
@@ -210,19 +220,25 @@ def get_tokens_from_cookie(cookie_val: str) -> dict:
         return None
     try:
         cookie_decoded = urllib.parse.unquote(cookie_val)
-        decrypted_str = _xor_decipher(cookie_decoded)
+        decrypted_str = _decrypt(cookie_decoded)
         return json.loads(decrypted_str)
     except Exception as e:
-        logger.warning(f"Failed to decrypt tokens cookie: {e}")
+        logger.warning(f"Failed to decrypt/parse tokens cookie: {e}")
         return None
 
 
-def delete_tokens_cookie():
-    """Delete the tokens browser cookie using JavaScript."""
+def delete_tokens_cookie(redirect_url: str = None):
+    """Delete the tokens browser cookie using JavaScript.
+    
+    If redirect_url is provided, the JS navigates the parent window to that URL
+    immediately after deleting the cookie.
+    """
     try:
-        components.html("""
+        redirect_js = f"window.top.location.href = '{redirect_url}';" if redirect_url else ""
+        components.html(f"""
         <script>
         document.cookie = "google_tokens=; path=/; max-age=0; SameSite=Lax; Secure";
+        {redirect_js}
         </script>
         """, height=0)
     except Exception as e:

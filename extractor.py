@@ -25,44 +25,41 @@ class EventDetails(BaseModel):
     source_url: Optional[str] = Field(description="Source URL if provided.")
 
 def is_safe_url(url: str) -> bool:
-    """Check if the URL is public and safe to scrape (prevents SSRF)."""
+    """Check if the URL is public and safe to scrape (prevents SSRF).
+    Uses socket.getaddrinfo to resolve all A/AAAA records and rejects
+    any address that is private, loopback, link-local, or multicast
+    — covering both IPv4 and IPv6 ranges.
+    """
     import socket
+    import ipaddress
     try:
         parsed = urlparse(url)
+        if parsed.scheme not in ("http", "https"):
+            return False
         hostname = parsed.hostname
         if not hostname:
             return False
-            
-        # Resolve hostname to IP
-        ip = socket.gethostbyname(hostname)
-        
-        # Check for loopback, link-local, and private ranges
-        ip_parts = [int(x) for x in ip.split('.')]
-        
-        # Loopback (127.0.0.0/8)
-        if ip_parts[0] == 127:
+
+        # getaddrinfo resolves both IPv4 and IPv6 addresses
+        results = socket.getaddrinfo(hostname, None)
+        if not results:
             return False
-            
-        # Private Class A (10.0.0.0/8)
-        if ip_parts[0] == 10:
-            return False
-            
-        # Private Class B (172.16.0.0/12)
-        if ip_parts[0] == 172 and 16 <= ip_parts[1] <= 31:
-            return False
-            
-        # Private Class C (192.168.0.0/16)
-        if ip_parts[0] == 192 and ip_parts[1] == 168:
-            return False
-            
-        # Link-local / APIPA (169.254.0.0/16)
-        if ip_parts[0] == 169 and ip_parts[1] == 254:
-            return False
-            
-        # IPv4 multicast (224.0.0.0/4)
-        if ip_parts[0] >= 224:
-            return False
-            
+
+        for info in results:
+            ip_str = info[4][0]
+            # Strip IPv6 scope id if present (e.g. "fe80::1%eth0")
+            ip_str = ip_str.split("%")[0]
+            ip = ipaddress.ip_address(ip_str)
+            if (
+                ip.is_private
+                or ip.is_loopback
+                or ip.is_link_local
+                or ip.is_multicast
+                or ip.is_reserved
+                or ip.is_unspecified
+            ):
+                return False
+
         return True
     except Exception:
         return False

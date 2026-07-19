@@ -17,7 +17,7 @@ from calendar_api import get_calendar_service, get_or_create_calendar, add_event
 logger = logging.getLogger(__name__)
 
 # --- Mode Resolution & Configuration ---
-APP_VERSION = "5.0"
+APP_VERSION = "5.2"
 app_mode = st.query_params.get("mode", "event")
 
 if app_mode == "apartment":
@@ -221,21 +221,23 @@ if "code" in query_params:
         creds = exchange_code(code_val, state_val)
         st.session_state["credentials"] = creds
         
-        # Set tokens cookie on successful login
+        # Determine the clean redirect URL for after login
+        redirect_mode = "apartment" if (state_val and "__mode_apartment" in state_val) else "event"
+        clean_url = f"{base_url}/?mode=apartment" if redirect_mode == "apartment" else f"{base_url}/"
+        
+        # Set cookie AND redirect in one atomic JS block:
+        # the browser executes both synchronously so the cookie is committed
+        # before navigation begins — no race condition possible.
         tokens = st.session_state.get("google_tokens")
         if tokens:
-            set_tokens_cookie(tokens)
-            
-        # Clear the code and state from the URL, preserving the mode if present in state
-        st.query_params.clear()
-        if state_val and "__mode_apartment" in state_val:
-            st.query_params["mode"] = "apartment"
-        
-        # Small delay to give the JS cookie-setter time to commit the cookie
-        # in the browser before the rerun navigates to the home page.
-        import time as _time
-        _time.sleep(0.5)
-        st.rerun()
+            set_tokens_cookie(tokens, redirect_url=clean_url)
+            st.stop()  # Python stops here; JS handles the redirect
+        else:
+            # No tokens (shouldn't happen) — fall back to Python rerun
+            st.query_params.clear()
+            if redirect_mode == "apartment":
+                st.query_params["mode"] = "apartment"
+            st.rerun()
     except Exception as e:
         logger.exception("Authentication failed during code exchange.")
         st.error("Authentication failed. Please try logging in again.")
@@ -312,8 +314,10 @@ with col_logout:
                     st.toast("Could not revoke Google access. You can revoke it manually in your Google Account security settings.")
         st.session_state["credentials"] = None
         st.session_state.pop("google_tokens", None)
-        delete_tokens_cookie()
-        st.rerun()
+        clean_url = f"{base_url}/?mode=apartment" if app_mode == "apartment" else f"{base_url}/"
+        # Delete cookie AND redirect atomically in the same JS block
+        delete_tokens_cookie(redirect_url=clean_url)
+        st.stop()
 
 # --- Main App Title ---
 render_title()
