@@ -2,6 +2,8 @@
 .streamlit/
 secrets.toml
 check_secrets.py
+linkedin_post.txt
+.env
 
 # Python virtual environment
 venv/

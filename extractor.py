@@ -122,7 +122,7 @@ def is_url(text: str) -> bool:
 class EventDetailsList(BaseModel):
     events: list[EventDetails]
 
-def extract_event_info(input_text: str):
+def extract_event_info(input_text: str, model: str = "gpt-4.1-nano"):  # Or "gpt-4o-mini"
     """Extract event details using OpenAI.
     Returns list[EventDetails].
     Scrapes URLs and combines them with any accompanying text for unified LLM extraction."""
@@ -177,7 +177,7 @@ def extract_event_info(input_text: str):
     try:
         client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
         completion = client.beta.chat.completions.parse(
-            model="gpt-4o-2024-08-06",
+            model=model,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": combined_content}

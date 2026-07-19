@@ -7,3 +7,7 @@ beautifulsoup4
 requests
 pydantic
 python-dateutil
+ragas
+pandas
+datasets
+jinja2
