@@ -2,14 +2,14 @@ import streamlit as st
 import base64
 import os
 import logging
+from streamlit_cookies_controller import CookieController
 from auth_helper import (
     get_login_url,
     exchange_code,
     revoke_token,
-    set_tokens_cookie,
-    delete_tokens_cookie,
     check_and_refresh_tokens,
     get_tokens_from_cookie,
+    encrypt_tokens,
 )
 from extractor import extract_event_info
 from calendar_api import get_calendar_service, get_or_create_calendar, add_event_to_calendar
@@ -17,7 +17,7 @@ from calendar_api import get_calendar_service, get_or_create_calendar, add_event
 logger = logging.getLogger(__name__)
 
 # --- Mode Resolution & Configuration ---
-APP_VERSION = "5.4"
+APP_VERSION = "5.6"
 app_mode = st.query_params.get("mode", "event")
 
 if app_mode == "apartment":
@@ -45,6 +45,10 @@ else:
 
 # --- Page Config & Mobile Styling ---
 st.set_page_config(page_title=APP_NAME, page_icon=APP_ICON, layout="centered")
+
+# Cookie controller — a registered Streamlit component (served from a real URL,
+# not a srcdoc iframe) so document.cookie reliably targets the main app domain.
+cookie_controller = CookieController()
 
 # --- Base URL Resolution & Privacy Policy Routing ---
 try:
@@ -177,43 +181,51 @@ if "credentials" not in st.session_state:
     st.session_state["credentials"] = None
 
 # Attempt automatic login from cookie if no active session credentials
-cookies = getattr(st, "context", None) and getattr(st.context, "cookies", None)
-if not st.session_state["credentials"] and cookies and "google_tokens" in cookies:
+if not st.session_state["credentials"]:
     try:
-        from google.oauth2.credentials import Credentials
-        
-        cookie_val = cookies["google_tokens"]
-        tokens = get_tokens_from_cookie(cookie_val)
-        if not tokens:
-            raise ValueError("Corrupted or undecryptable token cookie")
-        
-        # Check and refresh access token if it's close to expiry
-        tokens, was_refreshed = check_and_refresh_tokens(tokens)
-        if was_refreshed:
-            set_tokens_cookie(tokens)
+        encrypted_cookie = cookie_controller.get("google_tokens")
+        if encrypted_cookie:
+            from google.oauth2.credentials import Credentials
+
+            tokens = get_tokens_from_cookie(encrypted_cookie)
+            if not tokens:
+                raise ValueError("Corrupted or undecryptable token cookie")
+
+            # Check and refresh access token if it's close to expiry
+            tokens, was_refreshed = check_and_refresh_tokens(tokens)
+            if was_refreshed:
+                # Update the cookie with refreshed tokens
+                cookie_controller.set(
+                    "google_tokens",
+                    encrypt_tokens(tokens),
+                    max_age=86400,
+                )
+                st.session_state["google_tokens"] = tokens
+                st.session_state["auth_cookie_log"] = "🍪 Auth cookie refreshed and re-saved."
+
+            from auth_helper import SCOPES, TOKEN_URL
+            creds = Credentials(
+                token=tokens["access_token"],
+                refresh_token=tokens.get("refresh_token"),
+                token_uri=TOKEN_URL,
+                client_id=st.secrets["google_oauth"]["client_id"],
+                client_secret=st.secrets["google_oauth"]["client_secret"],
+                scopes=tokens.get("scope", "").split() or SCOPES,
+            )
+            st.session_state["credentials"] = creds
             st.session_state["google_tokens"] = tokens
-            # Don't rerun here — let the normal flow continue so the JS
-            # cookie-setter has a chance to execute before the next page load.
-            
-        from auth_helper import SCOPES, TOKEN_URL
-        creds = Credentials(
-            token=tokens["access_token"],
-            refresh_token=tokens.get("refresh_token"),
-            token_uri=TOKEN_URL,
-            client_id=st.secrets["google_oauth"]["client_id"],
-            client_secret=st.secrets["google_oauth"]["client_secret"],
-            scopes=tokens.get("scope", "").split() or SCOPES,
-        )
-        st.session_state["credentials"] = creds
-        # Save the tokens dict in session state so logout can read it to revoke
-        st.session_state["google_tokens"] = tokens
+            if "auth_cookie_log" not in st.session_state:
+                st.session_state["auth_cookie_log"] = "🍪 Found existing auth cookie ('google_tokens'). Auto-logged in successfully!"
+        else:
+            logger.info("No 'google_tokens' cookie found in browser request.")
     except Exception as e:
         logger.warning(f"Automatic cookie login failed: {e}")
-        delete_tokens_cookie()
+        st.session_state["auth_cookie_log"] = f"⚠️ Cookie auto-login failed: {e}"
+        cookie_controller.remove("google_tokens")
 
 # Check query params for auth code
 query_params = st.query_params
-if "code" in query_params:
+if "code" in query_params and not st.session_state["credentials"]:
     try:
         # If code is a list (Streamlit older behavior), get the first item
         code_val = query_params["code"][0] if isinstance(query_params["code"], list) else query_params["code"]
@@ -221,31 +233,29 @@ if "code" in query_params:
         creds = exchange_code(code_val, state_val)
         st.session_state["credentials"] = creds
 
-        # Flag the tokens for cookie-writing on the next clean render.
-        # We don't write the cookie here because st.rerun() would destroy
-        # the iframe before its JS executes. Instead we write it on the
-        # next render alongside real page content.
         tokens = st.session_state.get("google_tokens")
-        if tokens:
-            st.session_state["pending_cookie_tokens"] = tokens
 
-        # Navigate to the clean URL (strips ?code=&state= from the address bar)
+        # Clean the ?code=&state= from the address bar
         redirect_mode = "apartment" if (state_val and "__mode_apartment" in state_val) else "event"
         st.query_params.clear()
         if redirect_mode == "apartment":
             st.query_params["mode"] = "apartment"
-        st.rerun()
+
+        # Write the cookie. controller.set() triggers a rerun
+        if tokens:
+            cookie_controller.set("google_tokens", encrypt_tokens(tokens), max_age=86400)
+            st.session_state["auth_cookie_log"] = "✅ OAuth exchange complete. Encrypted auth cookie ('google_tokens') placed in browser."
+        else:
+            st.rerun()
     except Exception as e:
         logger.exception("Authentication failed during code exchange.")
         st.error("Authentication failed. Please try logging in again.")
 
 is_logged_in = st.session_state["credentials"] is not None
 
-# Write pending cookie now that the clean page is rendering.
-# The iframe fires its JS alongside real page content, so it won't be
-# destroyed by an immediate rerun.
-if is_logged_in and "pending_cookie_tokens" in st.session_state:
-    set_tokens_cookie(st.session_state.pop("pending_cookie_tokens"))
+# Render toast / status notification if auth cookie log exists
+if "auth_cookie_log" in st.session_state:
+    st.toast(st.session_state.pop("auth_cookie_log"))
 
 def render_title():
     st.markdown(f"<h1 class='title'>{icon_html}{APP_NAME} {APP_ICON}</h1>", unsafe_allow_html=True)
@@ -287,12 +297,6 @@ def render_info_banner():
     """, unsafe_allow_html=True)
 
 if not is_logged_in:
-    # Delete cookie if a logout was just triggered.
-    # We do it here (on the login page render) so the iframe has real content
-    # around it and its JS executes before any further interaction.
-    if st.session_state.pop("pending_cookie_delete", False):
-        delete_tokens_cookie()
-
     render_title()
     render_info_banner()
     st.warning("Please log in to your Google Account to capture events.")
@@ -303,6 +307,13 @@ if not is_logged_in:
     except Exception as e:
         logger.exception("Could not generate login URL.")
         st.error("Could not generate login URL. Please try again later.")
+
+    with st.expander("🔍 Cookie & Authentication Status", expanded=False):
+        raw_cookie = cookie_controller.get("google_tokens")
+        if raw_cookie:
+            st.success(f"🍪 `google_tokens` cookie detected in browser! (Length: {len(str(raw_cookie))} chars)")
+        else:
+            st.info("ℹ️ No `google_tokens` cookie found in current browser request.")
 
     st.stop()
 
@@ -323,11 +334,9 @@ with col_logout:
                     st.toast("Could not revoke Google access. You can revoke it manually in your Google Account security settings.")
         st.session_state["credentials"] = None
         st.session_state.pop("google_tokens", None)
-        # Flag cookie for deletion on the next render (the login page).
-        # Python rerun handles navigation; the login page renders the
-        # delete-cookie iframe alongside real content so it executes reliably.
-        st.session_state["pending_cookie_delete"] = True
-        st.rerun()
+        # Remove the cookie and rerun. controller.remove() triggers a rerun;
+        # credentials are cleared so the login page renders.
+        cookie_controller.remove("google_tokens")
 
 # --- Main App Title ---
 render_title()

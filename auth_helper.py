@@ -258,3 +258,9 @@ def check_and_refresh_tokens(tokens: dict) -> tuple[dict, bool]:
         tokens["expiry_timestamp"] = time.time() + refreshed_data.get("expires_in", 3600)
         return tokens, True
     return tokens, False
+
+
+def encrypt_tokens(tokens: dict) -> str:
+    """Encrypt a tokens dict to a URL-safe string for cookie storage."""
+    import json
+    return _encrypt(json.dumps(tokens))
