@@ -17,7 +17,7 @@ from calendar_api import get_calendar_service, get_or_create_calendar, add_event
 logger = logging.getLogger(__name__)
 
 # --- Mode Resolution & Configuration ---
-APP_VERSION = "5.3"
+APP_VERSION = "5.4"
 app_mode = st.query_params.get("mode", "event")
 
 if app_mode == "apartment":

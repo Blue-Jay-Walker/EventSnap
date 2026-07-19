@@ -91,8 +91,6 @@ def get_login_url(mode: str = "event") -> str:
         "response_type": "code",
         "scope": " ".join(SCOPES),
         "access_type": "offline",
-        # select_account: shows account picker but skips re-consent for returning users
-        "prompt": "select_account",
         "state": state,
     }
 
@@ -207,7 +205,7 @@ def set_tokens_cookie(tokens: dict, redirect_url: str = None):
         document.cookie = "google_tokens=" + encodeURIComponent('{encrypted_val}') + "; path=/; max-age=86400; SameSite=Lax; Secure";
         {redirect_js}
         </script>
-        """, height=0)
+        """, height=1)
     except Exception as e:
         logger.error(f"Failed to set tokens cookie: {e}")
 
@@ -240,7 +238,7 @@ def delete_tokens_cookie(redirect_url: str = None):
         document.cookie = "google_tokens=; path=/; max-age=0; SameSite=Lax; Secure";
         {redirect_js}
         </script>
-        """, height=0)
+        """, height=1)
     except Exception as e:
         logger.error(f"Failed to delete tokens cookie: {e}")
 
