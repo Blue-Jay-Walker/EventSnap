@@ -17,7 +17,7 @@ from calendar_api import get_calendar_service, get_or_create_calendar, add_event
 logger = logging.getLogger(__name__)
 
 # --- Mode Resolution & Configuration ---
-APP_VERSION = "5.2"
+APP_VERSION = "5.3"
 app_mode = st.query_params.get("mode", "event")
 
 if app_mode == "apartment":
@@ -220,29 +220,32 @@ if "code" in query_params:
         state_val = query_params["state"][0] if isinstance(query_params["state"], list) else query_params.get("state")
         creds = exchange_code(code_val, state_val)
         st.session_state["credentials"] = creds
-        
-        # Determine the clean redirect URL for after login
-        redirect_mode = "apartment" if (state_val and "__mode_apartment" in state_val) else "event"
-        clean_url = f"{base_url}/?mode=apartment" if redirect_mode == "apartment" else f"{base_url}/"
-        
-        # Set cookie AND redirect in one atomic JS block:
-        # the browser executes both synchronously so the cookie is committed
-        # before navigation begins — no race condition possible.
+
+        # Flag the tokens for cookie-writing on the next clean render.
+        # We don't write the cookie here because st.rerun() would destroy
+        # the iframe before its JS executes. Instead we write it on the
+        # next render alongside real page content.
         tokens = st.session_state.get("google_tokens")
         if tokens:
-            set_tokens_cookie(tokens, redirect_url=clean_url)
-            st.stop()  # Python stops here; JS handles the redirect
-        else:
-            # No tokens (shouldn't happen) — fall back to Python rerun
-            st.query_params.clear()
-            if redirect_mode == "apartment":
-                st.query_params["mode"] = "apartment"
-            st.rerun()
+            st.session_state["pending_cookie_tokens"] = tokens
+
+        # Navigate to the clean URL (strips ?code=&state= from the address bar)
+        redirect_mode = "apartment" if (state_val and "__mode_apartment" in state_val) else "event"
+        st.query_params.clear()
+        if redirect_mode == "apartment":
+            st.query_params["mode"] = "apartment"
+        st.rerun()
     except Exception as e:
         logger.exception("Authentication failed during code exchange.")
         st.error("Authentication failed. Please try logging in again.")
 
 is_logged_in = st.session_state["credentials"] is not None
+
+# Write pending cookie now that the clean page is rendering.
+# The iframe fires its JS alongside real page content, so it won't be
+# destroyed by an immediate rerun.
+if is_logged_in and "pending_cookie_tokens" in st.session_state:
+    set_tokens_cookie(st.session_state.pop("pending_cookie_tokens"))
 
 def render_title():
     st.markdown(f"<h1 class='title'>{icon_html}{APP_NAME} {APP_ICON}</h1>", unsafe_allow_html=True)
@@ -284,6 +287,12 @@ def render_info_banner():
     """, unsafe_allow_html=True)
 
 if not is_logged_in:
+    # Delete cookie if a logout was just triggered.
+    # We do it here (on the login page render) so the iframe has real content
+    # around it and its JS executes before any further interaction.
+    if st.session_state.pop("pending_cookie_delete", False):
+        delete_tokens_cookie()
+
     render_title()
     render_info_banner()
     st.warning("Please log in to your Google Account to capture events.")
@@ -314,10 +323,11 @@ with col_logout:
                     st.toast("Could not revoke Google access. You can revoke it manually in your Google Account security settings.")
         st.session_state["credentials"] = None
         st.session_state.pop("google_tokens", None)
-        clean_url = f"{base_url}/?mode=apartment" if app_mode == "apartment" else f"{base_url}/"
-        # Delete cookie AND redirect atomically in the same JS block
-        delete_tokens_cookie(redirect_url=clean_url)
-        st.stop()
+        # Flag cookie for deletion on the next render (the login page).
+        # Python rerun handles navigation; the login page renders the
+        # delete-cookie iframe alongside real content so it executes reliably.
+        st.session_state["pending_cookie_delete"] = True
+        st.rerun()
 
 # --- Main App Title ---
 render_title()
