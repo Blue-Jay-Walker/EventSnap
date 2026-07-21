@@ -72,7 +72,26 @@ TEST_CASES = [
             "end_time": "18:00",  # Defaults to 30 mins
             "category": "Apartment Viewing",
             "price": "2500 CHF/month",
-            "location": "Main Street 12, 8001 Zurich"
+            "location": "Main Street 12, 8001 Zurich",
+            "available_from": None,
+            "monthly_rent": "2500",
+            "source": None
+        }
+    },
+    {
+        "id": "TC_4",
+        "description": "Apartment viewing with source in text and availability date",
+        "input": "Found an apartment on flatfox.ch! Visit is on Oct 12 at 10:00. Address: Bernstrasse 4, 3000 Bern. Monthly rent is 1850 CHF. Available from 2026-11-01.",
+        "ground_truth": {
+            "title": "Apartment Viewing: Bernstrasse 4",
+            "start_time": "10:00",
+            "end_time": "10:30",
+            "category": "Apartment Viewing",
+            "price": "1850 CHF",
+            "location": "Bernstrasse 4, 3000 Bern",
+            "available_from": "2026-11-01",
+            "monthly_rent": "1850",
+            "source": "Flatfox"
         }
     }
 ]

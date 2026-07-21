@@ -34,6 +34,12 @@ def add_event_to_calendar(service, calendar_id: str, event_details):
     
     description_text = f"{event_details.description}\n\nCategory: {event_details.category}\nPrice: {event_details.price}\n\nSource: {event_details.source_url or 'Manual Text Input'}"
     
+    if event_details.category == "Apartment Viewing":
+        available_from = getattr(event_details, "available_from", None) or ""
+        monthly_rent = getattr(event_details, "monthly_rent", None) or ""
+        source = getattr(event_details, "source", None) or ""
+        description_text += f"\n\nAvailable From: {available_from}\nMonthly Rent: {monthly_rent}\nSource Platform: {source}"
+    
     if event_details.location and event_details.location.lower() != 'online':
         encoded_location = urllib.parse.quote(event_details.location)
         maps_link = f"https://www.google.com/maps/search/?api=1&query={encoded_location}"

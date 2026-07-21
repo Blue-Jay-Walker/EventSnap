@@ -23,6 +23,9 @@ class EventDetails(BaseModel):
     location: Optional[str] = Field(description="Physical location or 'Online'.")
     description: str = Field(description="Short description of the event.")
     source_url: Optional[str] = Field(description="Source URL if provided.")
+    available_from: Optional[str] = Field(default=None, description="For 'Apartment Viewing' only: the date when the apartment is available from (usually YYYY-MM-DD, or text if not clear). Leave null if it cannot be determined.")
+    monthly_rent: Optional[str] = Field(default=None, description="For 'Apartment Viewing' only: monthly rent amount in CHF (e.g., '2500'). Leave null if it cannot be found.")
+    source: Optional[str] = Field(default=None, description="For 'Apartment Viewing' only: the platform or website source of the listing (e.g. 'Flatfox', 'homegate.ch', or a text mention like 'an email'). Extract from either the text or the URL. Leave null if it cannot be found.")
 
 def is_safe_url(url: str) -> bool:
     """Check if the URL is public and safe to scrape (prevents SSRF).
@@ -155,6 +158,9 @@ def extract_event_info(input_text: str, model: str = "gpt-4.1-nano"):  # Or "gpt
             f"- Set the price to the rent (e.g., '1500 CHF' or '1500/month'). "
             f"- Set the location to the apartment's physical address. "
             f"- Set the title to include the street name and number of the apartment (e.g., 'Apartment Viewing: [Street Name] [Number]')."
+            f"- Set 'available_from' to the date the apartment is available from (usually YYYY-MM-DD, or leave blank/null if it cannot be determined)."
+            f"- Set 'monthly_rent' to the rent amount in CHF (e.g. '2500', or leave blank/null if it cannot be found)."
+            f"- Set 'source' to the source website/platform (either from the text or the URL, e.g. 'Flatfox', 'homegate.ch', or leave blank/null if it cannot be found)."
         )
 
     # Scrape all URLs
